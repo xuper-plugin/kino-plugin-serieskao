@@ -1,0 +1,129 @@
+{
+  "id": "serieskao",
+  "name": "SeriesKao",
+  "version": "0.1.0",
+  "apiVersion": 9,
+  "entry": "plugin.js",
+  "icon": "icon.png",
+  "description": "Series, anime, doramas y películas en español de serieskao.top: sección propia, géneros, búsqueda, episodios y varios servidores por título.",
+  "author": "xuper-plugin",
+  "homepage": "https://github.com/xuper-plugin/kino-plugin-serieskao",
+  "hosts": [
+    "serieskao.top",
+    "embed69.org",
+    "voe.sx",
+    "vidhide.com",
+    "vidhidepro.com",
+    "vidhideplus.com",
+    "vidhidefast.com",
+    "callistanise.com",
+    "dintezuvio.com",
+    "minochinos.com",
+    "filelions.to",
+    "morencius.com",
+    "embedwish.com",
+    "hglink.to",
+    "hlswish.com",
+    "streamwish.com",
+    "streamwish.to",
+    "strwish.com",
+    "wishembed.com",
+    "filelions.com",
+    "vibuxer.com",
+    "*.premilkyway.com"
+  ],
+  "capabilities": [
+    "search",
+    "home",
+    "browse",
+    "episodes",
+    "resolve",
+    "download",
+    "scopedSearch"
+  ],
+  "browser": true,
+  "streamHosts": "any",
+  "categories": [
+    "movies",
+    "series"
+  ],
+  "color": "#E11D48",
+  "section": {
+    "label": "SeriesKao",
+    "labelEn": "SeriesKao"
+  },
+  "theme": {
+    "accent": "#F43F5E",
+    "onAccent": "#1A0309",
+    "background": "#0E0709",
+    "surface": "#1C0F13",
+    "highlight": "#FDA4AF"
+  },
+  "settings": [
+    {
+      "key": "siteSection",
+      "type": "section",
+      "label": "Sitio",
+      "labelEn": "Site",
+      "hint": "Si serieskao.top cambia de dominio, escribe aquí la dirección nueva (https) y el plugin sigue funcionando, sin esperar una actualización.",
+      "hintEn": "If serieskao.top moves to a new domain, type the new address (https) here and the plugin keeps working, with no update to wait for."
+    },
+    {
+      "key": "site",
+      "type": "text",
+      "label": "Dirección del sitio",
+      "labelEn": "Site address",
+      "default": "https://serieskao.top",
+      "hint": "https://serieskao.top",
+      "hintEn": "https://serieskao.top"
+    },
+    {
+      "key": "audioSection",
+      "type": "section",
+      "label": "Idioma",
+      "labelEn": "Language",
+      "hint": "Cada título puede traer varios idiomas; Kino abre primero el que elijas y, si falla, los demás.",
+      "hintEn": "A title may come in several languages; Kino opens the one you pick first and, if it fails, the others."
+    },
+    {
+      "key": "audio",
+      "type": "select",
+      "label": "Idioma preferido",
+      "labelEn": "Preferred language",
+      "default": "lat",
+      "options": [
+        {
+          "value": "lat",
+          "label": "Latino",
+          "labelEn": "Latino"
+        },
+        {
+          "value": "cast",
+          "label": "Castellano",
+          "labelEn": "Castilian"
+        },
+        {
+          "value": "sub",
+          "label": "Subtitulado",
+          "labelEn": "Subtitled"
+        }
+      ]
+    },
+    {
+      "key": "info",
+      "type": "status",
+      "label": "Estado",
+      "labelEn": "Status"
+    },
+    {
+      "key": "clearCache",
+      "type": "action",
+      "label": "Vaciar caché",
+      "labelEn": "Clear cache",
+      "confirm": "¿Vaciar la caché de listas?",
+      "confirmEn": "Clear the list cache?"
+    }
+  ],
+  "telemetry": true,
+  "fetchHosts": "any"
+}

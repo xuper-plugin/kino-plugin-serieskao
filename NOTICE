@@ -1,0 +1,3 @@
+Kino plugin "SeriesKao". Site behaviour (the listing pages, a title's page and the player page, which is Embed69's behind the site's /vidurl) was
+read from the live site; no code was copied from it. The Embed69 reader, the extractors, the packer reader and the request helper are adapted from
+the Kino plugins "Embed 69" (xuper-plugin/kino-plugin-embed69) and "SoloLatino" (xuper-plugin/kino-plugin-sololatino), Apache-2.0, by the same author.
