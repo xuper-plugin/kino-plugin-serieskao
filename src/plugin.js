@@ -4,7 +4,7 @@
 // A title's player is Embed69's: its page lists, per language, the hosts that carry the title. Those are opened here: VidHide and StreamWish with plain
 // requests (./extractors), VOE with plain requests too and, when its host cannot be reached, through the hidden browser.
 
-import { DEFAULT_SITE, GENRES, SEGMENT, parseCards, parsePager, parseTitle, parsePlayerId, pageOf } from "./serieskao.js";
+import { DEFAULT_SITE, GENRES, SEGMENT, parseCards, parsePager, parseTitle, parsePlayerId, parseLatestEpisodes, hasEpisodes, pageOf } from "./serieskao.js";
 import * as embed69 from "./embed69.js";
 import { extractorFor } from "./extractors/index.js";
 import { makeReq, UA } from "./util/http.js";
@@ -24,19 +24,19 @@ const STRINGS = {
   es: {
     news: "Novedades", movies: "Películas", series: "Series", anime: "Anime", doramas: "Doramas",
     recentMovies: "Películas recientes", recentSeries: "Series recientes", recentAnime: "Anime reciente",
-    popularMovies: "Películas populares", popularSeries: "Series populares", popularAnime: "Anime popular",
+    latestEpisodes: "Últimos episodios", popularMovies: "Películas populares", popularSeries: "Series populares", popularAnime: "Anime popular",
     lat: "Latino", sub: "Subtitulado", cast: "Castellano", season: "Temporada", episode: "Episodio",
     heroText: "Series, anime y películas en español, con estrenos al día.",
-    unavailable: "El servicio no está disponible en este momento.", noEpisodes: "No se encontraron episodios de esta serie.", noStreams: "Ningún servidor de este título abrió. Prueba más tarde.",
+    unavailable: "El servicio no está disponible en este momento.", noEpisodes: "Este título todavía no tiene episodios en el sitio.", noStreams: "Ningún servidor de este título abrió. Prueba más tarde.",
     statusLine: "Sitio: {host} · Listas guardadas: {n}", cacheCleared: "Caché vaciada.",
   },
   en: {
     news: "What's new", movies: "Movies", series: "Series", anime: "Anime", doramas: "Doramas",
     recentMovies: "Recent movies", recentSeries: "Recent series", recentAnime: "Recent anime",
-    popularMovies: "Popular movies", popularSeries: "Popular series", popularAnime: "Popular anime",
+    latestEpisodes: "Latest episodes", popularMovies: "Popular movies", popularSeries: "Popular series", popularAnime: "Popular anime",
     lat: "Latino", sub: "Subtitled", cast: "Castilian", season: "Season", episode: "Episode",
     heroText: "Series, anime and movies in Spanish, with new releases.",
-    unavailable: "The service is not available right now.", noEpisodes: "No episodes found for this series.", noStreams: "No server of this title opened. Try again later.",
+    unavailable: "The service is not available right now.", noEpisodes: "This title has no episodes on the site yet.", noStreams: "No server of this title opened. Try again later.",
     statusLine: "Site: {host} · Lists kept: {n}", cacheCleared: "Cache cleared.",
   },
 };
@@ -102,9 +102,9 @@ function toItem(card, genreName) {
 const LISTS = {
   peliculas: { path: "/peliculas", titleKey: "recentMovies", genre: "peliculas" },
   populares: { path: "/peliculas/populares", titleKey: "popularMovies", genre: "peliculas" },
-  series: { path: "/series", titleKey: "recentSeries", genre: "series" },
+  series: { path: "/series", titleKey: "recentSeries", genre: "series", verify: true },
   seriesPop: { path: "/series/populares", titleKey: "popularSeries", genre: "series" },
-  animes: { path: "/animes", titleKey: "recentAnime", genre: "anime" },
+  animes: { path: "/animes", titleKey: "recentAnime", genre: "anime", verify: true },
   animesPop: { path: "/animes/populares", titleKey: "popularAnime", genre: "anime" },
 };
 
@@ -126,12 +126,29 @@ async function listPage(def, page) {
   return { cards, more: pager.page < pager.pages };
 }
 
+/** The new series the site lists before it has any episode would open an empty page: leave them out of a row (a page that cannot be read is kept). */
+async function withEpisodes(cards) {
+  const keep = await Promise.all(cards.map(async (c) => {
+    if (c.kind === "movie") return true;
+    try { return hasEpisodes(await getPage(`${site()}/${SEGMENT[c.code]}/${encodeURIComponent(c.slug)}`)); } catch (_) { return true; }
+  }));
+  return cards.filter((_, i) => keep[i]);
+}
+
+/** The home page's latest episodes, as a row of the series that just got one (a series with an episode always has something to play). */
+async function latestRow() {
+  const cards = await cached("latest", async () => parseLatestEpisodes(await getPage(site() + "/")));
+  const items = cards.slice(0, 20).map((c) => ({ ...toItem(c), ...(c.label ? { badges: [c.label] } : {}) }));
+  return items.length ? { id: "latest", title: t("latestEpisodes"), items, ref: "list:series", genre: "series" } : null;
+}
+
 const safeRow = async (id, fn) => { try { return await fn(); } catch (e) { kino.log("row " + id + ": " + (e && e.message)); return null; } };
 
 async function rowOf(id, ref, genre) {
   const def = refOf(ref);
   const { cards } = await listPage(def, 1);
-  const items = cards.slice(0, 20).map((c) => toItem(c, def.genreName));
+  const shown = def.verify ? await withEpisodes(cards.slice(0, 20)) : cards.slice(0, 20);
+  const items = shown.map((c) => toItem(c, def.genreName));
   return items.length ? { id, title: def.title, items, ref, genre: genre || def.genre || "series" } : null;
 }
 
@@ -139,6 +156,7 @@ async function rowOf(id, ref, genre) {
 
 export async function home() {
   return (await Promise.all([
+    safeRow("latest", latestRow),
     safeRow("series", () => rowOf("series", "list:series")),
     safeRow("peliculas", () => rowOf("peliculas", "list:peliculas")),
     safeRow("animes", () => rowOf("animes", "list:animes")),
@@ -174,7 +192,7 @@ export async function section({ tab } = {}) {
   const tabs = [{ id: "novedades", label: t("news") }, { id: "series", label: t("series") }, { id: "peliculas", label: t("movies") }, { id: "anime", label: t("anime") }, { id: "doramas", label: t("doramas") }];
   const chosen = tabs.some((x) => x.id === tab) ? tab : "novedades";
   let rows = [];
-  if (chosen === "novedades") rows = await Promise.all([safeRow("series", () => rowOf("series", "list:series")), safeRow("peliculas", () => rowOf("peliculas", "list:peliculas")), safeRow("animes", () => rowOf("animes", "list:animes"))]);
+  if (chosen === "novedades") rows = await Promise.all([safeRow("latest", latestRow), safeRow("series", () => rowOf("series", "list:series")), safeRow("peliculas", () => rowOf("peliculas", "list:peliculas")), safeRow("animes", () => rowOf("animes", "list:animes"))]);
   else if (chosen === "series") rows = await Promise.all([safeRow("series", () => rowOf("series", "list:series")), safeRow("seriesPop", () => rowOf("seriesPop", "list:seriesPop"))]);
   else if (chosen === "peliculas") rows = await Promise.all([safeRow("peliculas", () => rowOf("peliculas", "list:peliculas")), safeRow("populares", () => rowOf("populares", "list:populares")), safeRow("terror", () => rowOf("terror", "genre:terror", "peliculas")), safeRow("accion", () => rowOf("accion", "genre:accion", "peliculas"))]);
   else if (chosen === "anime") rows = await Promise.all([safeRow("animes", () => rowOf("animes", "list:animes")), safeRow("animesPop", () => rowOf("animesPop", "list:animesPop"))]);

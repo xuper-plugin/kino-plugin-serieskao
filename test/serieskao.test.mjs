@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseCards, parsePager, parseTitle, parsePlayerId, pageOf } from "../src/serieskao.js";
+import { parseCards, parsePager, parseTitle, parsePlayerId, parseLatestEpisodes, hasEpisodes, pageOf } from "../src/serieskao.js";
 
 const CARD = (href, title, year, type, rating = "7.3") => `<article class="card">
    <a href="/${href}" class="card__link">
@@ -98,4 +98,26 @@ test("pageOf builds the page of a movie and of an episode, and nothing else", ()
   assert.equal(pageOf("s:blue-lights-g7rV8u"), null);
   assert.equal(pageOf("e:x:slug:1:1"), null);
   assert.equal(pageOf("m:../etc"), null);
+});
+
+const LATEST = `<article class="episode-card">
+   <a href="https://serieskao.top/serie/doctor-x-ytSHp1/temporada/1/capitulo/5"><figure class="episode-card__poster"><img src="https://image.tmdb.org/t/p/original/a.jpg" alt="x" /><span class="episode-card__badge">T1 E5</span></figure><h3 class="episode-card__title">Doctor X &amp; Co</h3></a>
+</article>
+<article class="episode-card">
+   <a href="/anime/tougen-anki/temporada/2/capitulo/4"><figure class="episode-card__poster"><img src="https://image.tmdb.org/t/p/original/b.jpg" alt="y" /><span class="episode-card__badge">T2 E4</span></figure><h3 class="episode-card__title">Tougen Anki</h3></a>
+</article>
+<article class="episode-card">
+   <a href="https://serieskao.top/serie/doctor-x-ytSHp1/temporada/1/capitulo/4"><h3 class="episode-card__title">Doctor X again</h3></a>
+</article>`;
+
+test("parseLatestEpisodes gives one card per series, with the site's own or a relative address", () => {
+  const cards = parseLatestEpisodes(LATEST);
+  assert.equal(cards.length, 2);
+  assert.deepEqual(cards[0], { code: "s", slug: "doctor-x-ytSHp1", kind: "series", title: "Doctor X & Co", poster: "https://image.tmdb.org/t/p/original/a.jpg", label: "T1 E5" });
+  assert.deepEqual([cards[1].code, cards[1].slug, cards[1].label], ["a", "tougen-anki", "T2 E4"]);
+});
+
+test("hasEpisodes tells a series with episodes from one the site lists with none", () => {
+  assert.equal(hasEpisodes('<a href="/serie/x/temporada/1/capitulo/1" class="episode-item">'), true);
+  assert.equal(hasEpisodes("<section class=\"detail-hero\"></section>"), false);
 });

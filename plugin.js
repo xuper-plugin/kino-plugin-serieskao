@@ -104,6 +104,21 @@ function pageOf(ref, site2 = DEFAULT_SITE) {
   m = new RegExp(String.raw`^e:([sa]):(${SLUG}):(\d+):(\d+)$`).exec(ref);
   return m ? `${site2}/${SEGMENT[m[1]]}/${encodeURIComponent(m[2])}/temporada/${m[3]}/capitulo/${m[4]}` : null;
 }
+function parseLatestEpisodes(html) {
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const c of String(html || "").split('<article class="episode-card"').slice(1)) {
+    const href = /href="(?:https?:\/\/[^\/"]+)?\/(serie|anime)\/([^"\/?#]+)\/temporada\/\d+\/capitulo\/\d+"/.exec(c);
+    if (!href || seen.has(href[2])) continue;
+    seen.add(href[2]);
+    const img = /<img[^>]*?src="([^"]+)"/.exec(c);
+    const title = /<h\d class="episode-card__title">([\s\S]*?)<\/h\d>/.exec(c);
+    const badge = /episode-card__badge">([^<]*)</.exec(c);
+    out.push({ code: CODE[href[1]], slug: decodeURIComponent(href[2]), kind: "series", title: title ? text(title[1]) : href[2], poster: img ? img[1] : "", label: badge ? text(badge[1]) : "" });
+  }
+  return out;
+}
+var hasEpisodes = (html) => /\/temporada\/\d+\/capitulo\/\d+"/.test(String(html || ""));
 
 // src/embed69.js
 var SITE = "https://embed69.org";
@@ -453,6 +468,7 @@ var STRINGS = {
     recentMovies: "Pel\xEDculas recientes",
     recentSeries: "Series recientes",
     recentAnime: "Anime reciente",
+    latestEpisodes: "\xDAltimos episodios",
     popularMovies: "Pel\xEDculas populares",
     popularSeries: "Series populares",
     popularAnime: "Anime popular",
@@ -463,7 +479,7 @@ var STRINGS = {
     episode: "Episodio",
     heroText: "Series, anime y pel\xEDculas en espa\xF1ol, con estrenos al d\xEDa.",
     unavailable: "El servicio no est\xE1 disponible en este momento.",
-    noEpisodes: "No se encontraron episodios de esta serie.",
+    noEpisodes: "Este t\xEDtulo todav\xEDa no tiene episodios en el sitio.",
     noStreams: "Ning\xFAn servidor de este t\xEDtulo abri\xF3. Prueba m\xE1s tarde.",
     statusLine: "Sitio: {host} \xB7 Listas guardadas: {n}",
     cacheCleared: "Cach\xE9 vaciada."
@@ -477,6 +493,7 @@ var STRINGS = {
     recentMovies: "Recent movies",
     recentSeries: "Recent series",
     recentAnime: "Recent anime",
+    latestEpisodes: "Latest episodes",
     popularMovies: "Popular movies",
     popularSeries: "Popular series",
     popularAnime: "Popular anime",
@@ -487,7 +504,7 @@ var STRINGS = {
     episode: "Episode",
     heroText: "Series, anime and movies in Spanish, with new releases.",
     unavailable: "The service is not available right now.",
-    noEpisodes: "No episodes found for this series.",
+    noEpisodes: "This title has no episodes on the site yet.",
     noStreams: "No server of this title opened. Try again later.",
     statusLine: "Site: {host} \xB7 Lists kept: {n}",
     cacheCleared: "Cache cleared."
@@ -556,9 +573,9 @@ function toItem(card, genreName) {
 var LISTS = {
   peliculas: { path: "/peliculas", titleKey: "recentMovies", genre: "peliculas" },
   populares: { path: "/peliculas/populares", titleKey: "popularMovies", genre: "peliculas" },
-  series: { path: "/series", titleKey: "recentSeries", genre: "series" },
+  series: { path: "/series", titleKey: "recentSeries", genre: "series", verify: true },
   seriesPop: { path: "/series/populares", titleKey: "popularSeries", genre: "series" },
-  animes: { path: "/animes", titleKey: "recentAnime", genre: "anime" },
+  animes: { path: "/animes", titleKey: "recentAnime", genre: "anime", verify: true },
   animesPop: { path: "/animes/populares", titleKey: "popularAnime", genre: "anime" }
 };
 function refOf(ref) {
@@ -581,6 +598,22 @@ async function listPage(def, page) {
   const { cards, pager } = r[0] || { cards: [], pager: { page, pages: page } };
   return { cards, more: pager.page < pager.pages };
 }
+async function withEpisodes(cards) {
+  const keep = await Promise.all(cards.map(async (c) => {
+    if (c.kind === "movie") return true;
+    try {
+      return hasEpisodes(await getPage(`${site()}/${SEGMENT[c.code]}/${encodeURIComponent(c.slug)}`));
+    } catch (_) {
+      return true;
+    }
+  }));
+  return cards.filter((_, i) => keep[i]);
+}
+async function latestRow() {
+  const cards = await cached("latest", async () => parseLatestEpisodes(await getPage(site() + "/")));
+  const items = cards.slice(0, 20).map((c) => ({ ...toItem(c), ...c.label ? { badges: [c.label] } : {} }));
+  return items.length ? { id: "latest", title: t("latestEpisodes"), items, ref: "list:series", genre: "series" } : null;
+}
 var safeRow = async (id, fn) => {
   try {
     return await fn();
@@ -592,11 +625,13 @@ var safeRow = async (id, fn) => {
 async function rowOf(id, ref, genre) {
   const def = refOf(ref);
   const { cards } = await listPage(def, 1);
-  const items = cards.slice(0, 20).map((c) => toItem(c, def.genreName));
+  const shown = def.verify ? await withEpisodes(cards.slice(0, 20)) : cards.slice(0, 20);
+  const items = shown.map((c) => toItem(c, def.genreName));
   return items.length ? { id, title: def.title, items, ref, genre: genre || def.genre || "series" } : null;
 }
 async function home() {
   return (await Promise.all([
+    safeRow("latest", latestRow),
     safeRow("series", () => rowOf("series", "list:series")),
     safeRow("peliculas", () => rowOf("peliculas", "list:peliculas")),
     safeRow("animes", () => rowOf("animes", "list:animes")),
@@ -625,7 +660,7 @@ async function section({ tab } = {}) {
   const tabs = [{ id: "novedades", label: t("news") }, { id: "series", label: t("series") }, { id: "peliculas", label: t("movies") }, { id: "anime", label: t("anime") }, { id: "doramas", label: t("doramas") }];
   const chosen = tabs.some((x) => x.id === tab) ? tab : "novedades";
   let rows = [];
-  if (chosen === "novedades") rows = await Promise.all([safeRow("series", () => rowOf("series", "list:series")), safeRow("peliculas", () => rowOf("peliculas", "list:peliculas")), safeRow("animes", () => rowOf("animes", "list:animes"))]);
+  if (chosen === "novedades") rows = await Promise.all([safeRow("latest", latestRow), safeRow("series", () => rowOf("series", "list:series")), safeRow("peliculas", () => rowOf("peliculas", "list:peliculas")), safeRow("animes", () => rowOf("animes", "list:animes"))]);
   else if (chosen === "series") rows = await Promise.all([safeRow("series", () => rowOf("series", "list:series")), safeRow("seriesPop", () => rowOf("seriesPop", "list:seriesPop"))]);
   else if (chosen === "peliculas") rows = await Promise.all([safeRow("peliculas", () => rowOf("peliculas", "list:peliculas")), safeRow("populares", () => rowOf("populares", "list:populares")), safeRow("terror", () => rowOf("terror", "genre:terror", "peliculas")), safeRow("accion", () => rowOf("accion", "genre:accion", "peliculas"))]);
   else if (chosen === "anime") rows = await Promise.all([safeRow("animes", () => rowOf("animes", "list:animes")), safeRow("animesPop", () => rowOf("animesPop", "list:animesPop"))]);

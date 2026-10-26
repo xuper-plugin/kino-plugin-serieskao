@@ -90,3 +90,22 @@ export function pageOf(ref, site = DEFAULT_SITE) {
   m = new RegExp(String.raw`^e:([sa]):(${SLUG}):(\d+):(\d+)$`).exec(ref);
   return m ? `${site}/${SEGMENT[m[1]]}/${encodeURIComponent(m[2])}/temporada/${m[3]}/capitulo/${m[4]}` : null;
 }
+
+/** The home page's "Últimos Episodios": one card per series with an episode just added, `{ code, slug, kind: "series", title, poster, label: "T1 E5" }`. */
+export function parseLatestEpisodes(html) {
+  const out = [];
+  const seen = new Set();
+  for (const c of String(html || "").split('<article class="episode-card"').slice(1)) {
+    const href = /href="(?:https?:\/\/[^\/"]+)?\/(serie|anime)\/([^"\/?#]+)\/temporada\/\d+\/capitulo\/\d+"/.exec(c);
+    if (!href || seen.has(href[2])) continue;
+    seen.add(href[2]);
+    const img = /<img[^>]*?src="([^"]+)"/.exec(c);
+    const title = /<h\d class="episode-card__title">([\s\S]*?)<\/h\d>/.exec(c);
+    const badge = /episode-card__badge">([^<]*)</.exec(c);
+    out.push({ code: CODE[href[1]], slug: decodeURIComponent(href[2]), kind: "series", title: title ? text(title[1]) : href[2], poster: img ? img[1] : "", label: badge ? text(badge[1]) : "" });
+  }
+  return out;
+}
+
+/** Whether a title's page lists at least one episode (the site also catalogues new series that have none yet). */
+export const hasEpisodes = (html) => /\/temporada\/\d+\/capitulo\/\d+"/.test(String(html || ""));
