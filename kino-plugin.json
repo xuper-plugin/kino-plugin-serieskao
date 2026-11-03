@@ -8,6 +8,7 @@
   "description": "Series, anime, doramas y películas en español de serieskao.top: sección propia, géneros, búsqueda, episodios y varios servidores por título.",
   "author": "xuper-plugin",
   "homepage": "https://github.com/xuper-plugin/kino-plugin-serieskao",
+  "discoverable": false,
   "hosts": [
     "serieskao.top",
     "embed69.org",
