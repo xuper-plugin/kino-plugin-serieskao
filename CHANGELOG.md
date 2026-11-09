@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Home answers inside Kino's 20 s. Measured on users' devices (TV boxes and sticks) Home ran 21-26 s and Kino threw the whole answer away: the rows were asked with `Promise.all`, so the slowest site (each request may wait 15 s) decided. Now the rows are asked together and the ones that answer inside 11 s are shown; slow ones go on filling the cache for the next opening, and the last Home that worked is kept (12 h) for when none answers in time (`src/util/home.js`, tests in `test/home.test.mjs`).
+
 ## 0.1.1
 
 - The site lists its newest series before they have any episode, and they came first in "Series recientes": opening one ended in "no episodes". Those rows now leave out a series whose page lists no episode, a new row "Últimos episodios" (the site's own latest episodes, so always something to play) comes first, and a title without episodes says so plainly.

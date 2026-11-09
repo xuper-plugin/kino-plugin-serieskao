@@ -10,6 +10,7 @@ import { extractorFor } from "./extractors/index.js";
 import { makeReq, UA } from "./util/http.js";
 import { searchWithTerms } from "./util/terms.js";
 import { playable } from "./util/probe.js";
+import { homeWithin } from "./util/home.js";
 
 const CACHE_MS = 10 * 60 * 1000;
 const RESOLVE_MS = 70000;
@@ -155,15 +156,15 @@ async function rowOf(id, ref, genre) {
 // ---- exports ----
 
 export async function home() {
-  return (await Promise.all([
-    safeRow("latest", latestRow),
-    safeRow("series", () => rowOf("series", "list:series")),
-    safeRow("peliculas", () => rowOf("peliculas", "list:peliculas")),
-    safeRow("animes", () => rowOf("animes", "list:animes")),
-    safeRow("dorama", () => rowOf("dorama", "genre:dorama", "doramas")),
-    safeRow("seriesPop", () => rowOf("seriesPop", "list:seriesPop")),
-    safeRow("populares", () => rowOf("populares", "list:populares")),
-  ])).filter(Boolean);
+  return homeWithin([
+    () => safeRow("latest", latestRow),
+    () => safeRow("series", () => rowOf("series", "list:series")),
+    () => safeRow("peliculas", () => rowOf("peliculas", "list:peliculas")),
+    () => safeRow("animes", () => rowOf("animes", "list:animes")),
+    () => safeRow("dorama", () => rowOf("dorama", "genre:dorama", "doramas")),
+    () => safeRow("seriesPop", () => rowOf("seriesPop", "list:seriesPop")),
+    () => safeRow("populares", () => rowOf("populares", "list:populares")),
+  ]);
 }
 
 export async function browse(ref, cursor) {

@@ -451,6 +451,49 @@ async function playable(kino2, out, ms = 6e3) {
   }
 }
 
+// src/util/home.js
+var BUDGET_MS = 11e3;
+var KEEP_MS = 12 * 60 * 60 * 1e3;
+var MAX_CHARS = 60 * 1024;
+function keep(key, rows) {
+  try {
+    for (let per = 20; per >= 4; per -= 4) {
+      const text2 = JSON.stringify({ at: Date.now(), rows: rows.map((r) => ({ ...r, items: Array.isArray(r.items) ? r.items.slice(0, per) : r.items })) });
+      if (text2.length <= MAX_CHARS) {
+        kino.storage.set(key, text2, { ttlMs: KEEP_MS });
+        return;
+      }
+    }
+  } catch (_) {
+  }
+}
+function kept(key) {
+  try {
+    const o = JSON.parse(kino.storage.get(key) || "null");
+    return o && Date.now() - o.at < KEEP_MS && Array.isArray(o.rows) && o.rows.length ? o.rows : null;
+  } catch (_) {
+    return null;
+  }
+}
+async function homeWithin(jobs, { key = "home:last", budgetMs = BUDGET_MS } = {}) {
+  const out = jobs.map(() => null);
+  let done = false;
+  const all = Promise.all(jobs.map((job, i) => Promise.resolve().then(job).then((row) => {
+    out[i] = row;
+  }, () => {
+  }))).then(() => {
+    done = true;
+  });
+  const end = Date.now() + budgetMs;
+  while (!done && Date.now() < end) await Promise.race([all, kino.sleep(Math.min(250, Math.max(1, end - Date.now())))]);
+  const rows = out.filter(Boolean);
+  if (rows.length) {
+    keep(key, rows);
+    return rows;
+  }
+  return kept(key) || [];
+}
+
 // src/plugin.js
 var CACHE_MS = 10 * 60 * 1e3;
 var RESOLVE_MS = 7e4;
@@ -599,7 +642,7 @@ async function listPage(def, page) {
   return { cards, more: pager.page < pager.pages };
 }
 async function withEpisodes(cards) {
-  const keep = await Promise.all(cards.map(async (c) => {
+  const keep2 = await Promise.all(cards.map(async (c) => {
     if (c.kind === "movie") return true;
     try {
       return hasEpisodes(await getPage(`${site()}/${SEGMENT[c.code]}/${encodeURIComponent(c.slug)}`));
@@ -607,7 +650,7 @@ async function withEpisodes(cards) {
       return true;
     }
   }));
-  return cards.filter((_, i) => keep[i]);
+  return cards.filter((_, i) => keep2[i]);
 }
 async function latestRow() {
   const cards = await cached("latest", async () => parseLatestEpisodes(await getPage(site() + "/")));
@@ -630,15 +673,15 @@ async function rowOf(id, ref, genre) {
   return items.length ? { id, title: def.title, items, ref, genre: genre || def.genre || "series" } : null;
 }
 async function home() {
-  return (await Promise.all([
-    safeRow("latest", latestRow),
-    safeRow("series", () => rowOf("series", "list:series")),
-    safeRow("peliculas", () => rowOf("peliculas", "list:peliculas")),
-    safeRow("animes", () => rowOf("animes", "list:animes")),
-    safeRow("dorama", () => rowOf("dorama", "genre:dorama", "doramas")),
-    safeRow("seriesPop", () => rowOf("seriesPop", "list:seriesPop")),
-    safeRow("populares", () => rowOf("populares", "list:populares"))
-  ])).filter(Boolean);
+  return homeWithin([
+    () => safeRow("latest", latestRow),
+    () => safeRow("series", () => rowOf("series", "list:series")),
+    () => safeRow("peliculas", () => rowOf("peliculas", "list:peliculas")),
+    () => safeRow("animes", () => rowOf("animes", "list:animes")),
+    () => safeRow("dorama", () => rowOf("dorama", "genre:dorama", "doramas")),
+    () => safeRow("seriesPop", () => rowOf("seriesPop", "list:seriesPop")),
+    () => safeRow("populares", () => rowOf("populares", "list:populares"))
+  ]);
 }
 async function browse(ref, cursor) {
   const def = refOf(ref);
