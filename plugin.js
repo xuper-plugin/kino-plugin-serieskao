@@ -116,13 +116,6 @@ var hasEpisodes = (html) => /\/temporada\/\d+\/capitulo\/\d+"/.test(String(html 
 
 // src/embed69.js
 var SITE = "https://embed69.org";
-var MAX_DIFFICULTY = 4;
-var POW_CAP = 1e5;
-function solvePow(kino2, challenge, difficulty, cap = POW_CAP) {
-  const zeros = "0".repeat(difficulty);
-  for (let n = 0; n <= cap; n++) if (kino2.crypto.hash("sha256", challenge + n).startsWith(zeros)) return n;
-  return null;
-}
 function decryptLink(kino2, keyHex, b64) {
   const raw = atob(b64);
   let ivHex = "";
@@ -135,24 +128,21 @@ var quoted = (html, name) => {
 };
 function serversOf(kino2, html) {
   const data = /let\s+dataLink\s*=\s*(\[.+\]);/.exec(html);
-  const challenge = quoted(html, "POW_CHALLENGE"), salt = quoted(html, "POW_SALT");
-  const difficulty = Number((/POW_DIFFICULTY\s*=\s*(\d+)/.exec(html) || [])[1]);
-  if (!data || !challenge || salt == null || !Number.isInteger(difficulty) || difficulty > MAX_DIFFICULTY) return [];
+  const challenge = quoted(html, "LINK_CHALLENGE"), salt = quoted(html, "LINK_SALT");
+  if (!data || !challenge || salt == null) return [];
   let langs;
   try {
     langs = JSON.parse(data[1]);
   } catch (_) {
     return [];
   }
-  const n = solvePow(kino2, challenge, difficulty);
-  if (n == null) return [];
-  const keyHex = kino2.crypto.hash("sha256", challenge + n + salt);
+  const keyHex = kino2.crypto.hash("sha256", challenge + salt);
   const rows = [];
   for (const l of langs) {
     for (const e of l && l.sortedEmbeds || []) {
       if (!e || e.servername === "download" || typeof e.link !== "string") continue;
       try {
-        rows.push({ lang: String(l.video_language || ""), server: String(e.servername || ""), url: decryptLink(kino2, keyHex, e.link) });
+        rows.push({ lang: String(l.video_language || ""), server: String(e.servername || ""), url: decryptLink(kino2, keyHex, e.link).replace(/`/g, "").trim() });
       } catch (_) {
       }
     }
