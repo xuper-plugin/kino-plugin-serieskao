@@ -366,7 +366,8 @@ var STRINGS = {
     noEpisodes: "Este t\xEDtulo todav\xEDa no tiene episodios en el sitio.",
     noStreams: "Ning\xFAn servidor de este t\xEDtulo abri\xF3. Prueba m\xE1s tarde.",
     statusLine: "Sitio: {host} \xB7 Listas guardadas: {n}",
-    cacheCleared: "Cach\xE9 vaciada."
+    cacheCleared: "Cach\xE9 vaciada.",
+    needResolver: "Para reproducir, abre SeriesKao desde el men\xFA e instala el motor de reproducci\xF3n que te pedir\xE1."
   },
   en: {
     news: "What's new",
@@ -391,7 +392,8 @@ var STRINGS = {
     noEpisodes: "This title has no episodes on the site yet.",
     noStreams: "No server of this title opened. Try again later.",
     statusLine: "Site: {host} \xB7 Lists kept: {n}",
-    cacheCleared: "Cache cleared."
+    cacheCleared: "Cache cleared.",
+    needResolver: "To play, open SeriesKao from the menu and install the playback engine it asks for."
   }
 };
 var t = (key) => {
@@ -649,12 +651,63 @@ async function open(server, req, budget) {
   return { captured: true, url: best.url, mime: best.mime || (/\.mp4/i.test(best.url) ? "video/mp4" : HLS), headers: best.headers || { Referer: server.url } };
 }
 var labelOf = (s) => `${t(LANG_NAME[s.lang.toUpperCase()] || "sub")} \xB7 ${SERVER_NAME[s.server.toLowerCase()] || s.server}`;
+var RESOLVER_REPO = "xuper-plugin/kino-plugin-kino-resolver";
+var SUPPORT_URL = "https://ko-fi.com/xuperplugins";
+async function resolverInstalled() {
+  try {
+    await kino.plugins.call("resolver", "normalizeHost", { url: "https://probe.invalid/" });
+    return true;
+  } catch (e) {
+    return (e && e.code) !== "provider_missing";
+  }
+}
+function supportNode(device) {
+  if (device === "tv") return { type: "QrImage", value: SUPPORT_URL, size: "large", labelText: "Si te gusta mi trabajo, escan\xE9alo y ap\xF3yame", labelTextEn: "If you like my work, scan it and support me" };
+  return { type: "ElevatedButton", key: "donate", icon: "heart", labelText: "Si te gusta mi trabajo, ap\xF3yame", labelTextEn: "If you like my work, support me", onPressed: { go: { url: { href: SUPPORT_URL } } } };
+}
+function installGateView(device) {
+  return {
+    type: "Scaffold",
+    key: "serieskao-install",
+    body: { type: "SingleChildScrollView", key: "installScroll", children: [
+      { type: "Column", padding: 24, gap: 16, crossAxisAlignment: "stretch", children: [
+        { type: "Text", text: "Necesitas el motor de reproducci\xF3n", textEn: "You need the playback engine", style: "h3" },
+        { type: "Text", color: "secondary", text: "SeriesKao reproduce a trav\xE9s de Kino Resolver (gratis). Inst\xE1lalo una vez y sirve para este y para otros plugins de sitios.", textEn: "SeriesKao plays through Kino Resolver (free). Install it once and it works here and in other site plugins." },
+        { type: "ElevatedButton", key: "installResolver", labelText: "Instalar Kino Resolver", labelTextEn: "Install Kino Resolver", onPressed: { go: { installPlugin: { repo: RESOLVER_REPO } } } },
+        supportNode(device)
+      ] }
+    ] }
+  };
+}
+function readyView(device) {
+  return {
+    type: "Scaffold",
+    key: "serieskao-ready",
+    body: { type: "SingleChildScrollView", key: "readyScroll", children: [
+      { type: "Column", padding: 24, gap: 16, crossAxisAlignment: "stretch", children: [
+        { type: "Text", text: "Todo listo", textEn: "All set", style: "h3" },
+        { type: "Text", color: "secondary", text: "Explora SeriesKao desde el inicio de Kino o busca un t\xEDtulo.", textEn: "Browse SeriesKao from Kino's home, or search for a title." },
+        supportNode(device)
+      ] }
+    ] }
+  };
+}
+async function screen(ctx) {
+  await null;
+  const c = ctx && typeof ctx === "object" ? ctx : {};
+  return c.installed && c.installed[RESOLVER_REPO] ? readyView(c.device) : installGateView(c.device);
+}
+async function screenEvent() {
+  await null;
+  return {};
+}
 async function resolve(ref) {
   const m = /^c:(.+)@(\d+)$/.exec(String(ref || ""));
   const base = m ? m[1] : String(ref || "");
   const only = m ? Number(m[2]) : null;
   const pageUrl = pageOf(base, site());
   if (!pageUrl) throw kino.error("not_found", "unknown ref: " + ref);
+  if (!await resolverInstalled()) throw kino.error("unavailable", "resolver missing", { userMessage: t("needResolver") });
   const req = makeReq(kino, { deadline: Date.now() + RESOLVE_MS });
   const servers2 = await serversOf2(pageUrl, req);
   if (!servers2.length) throw kino.error("not_found", "no servers on " + pageUrl, { userMessage: t("noStreams") });
@@ -714,6 +767,8 @@ export {
   episodes,
   home,
   resolve,
+  screen,
+  screenEvent,
   search,
   section,
   settingsStatus

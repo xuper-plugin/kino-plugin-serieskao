@@ -1,7 +1,7 @@
 {
   "id": "serieskao",
   "name": "SeriesKao",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "apiVersion": 20,
   "entry": "plugin.js",
   "icon": "icon.png",
@@ -40,7 +40,8 @@
     "episodes",
     "resolve",
     "download",
-    "scopedSearch"
+    "scopedSearch",
+    "screen"
   ],
   "browser": true,
   "streamHosts": "any",
@@ -138,5 +139,20 @@
         "resolve"
       ]
     }
+  },
+  "screen": {
+    "label": "SeriesKao",
+    "labelEn": "SeriesKao",
+    "icon": "movie",
+    "menuOpens": "screen",
+    "opensFrom": [
+      "menu",
+      "settings"
+    ],
+    "settingsButton": {
+      "label": "Abrir SeriesKao",
+      "labelEn": "Open SeriesKao"
+    },
+    "settingsIn": "screen"
   }
 }
