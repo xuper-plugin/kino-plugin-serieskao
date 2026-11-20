@@ -55,11 +55,11 @@ const SERIES = `<section class="detail-hero">
    </div>
 </section>
 <div class="episodes-list hidden" id="season-1">
-   <a href="/serie/blue-lights-g7rV8u/temporada/1/capitulo/1" class="episode-item"><span class="episode-item__number">1</span><span class="episode-item__title">El código</span></a>
-   <a href="/serie/blue-lights-g7rV8u/temporada/1/capitulo/2" class="episode-item"><span class="episode-item__number">2</span><span class="episode-item__title">Lote &amp; más</span></a>
+   <a href="/serie/blue-lights-g7rV8u#s1-e1" class="episode-item" data-episode-link data-season="1" data-episode="1"><span class="episode-item__number">1</span><span class="episode-item__title">El código</span></a>
+   <a href="/serie/blue-lights-g7rV8u#s1-e2" class="episode-item" data-episode-link data-season="1" data-episode="2"><span class="episode-item__number">2</span><span class="episode-item__title">Lote &amp; más</span></a>
 </div>
 <div class="episodes-list hidden" id="season-2">
-   <a href="/serie/blue-lights-g7rV8u/temporada/2/capitulo/1" class="episode-item"><span class="episode-item__number">1</span><span class="episode-item__title"></span></a>
+   <a href="/serie/blue-lights-g7rV8u#s2-e1" class="episode-item" data-episode-link data-season="2" data-episode="1"><span class="episode-item__number">1</span><span class="episode-item__title"></span></a>
 </div>`;
 
 test("parseTitle reads a series page and its seasons", () => {

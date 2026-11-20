@@ -56,19 +56,18 @@ export function parseTitle(html) {
   const poster = /detail-hero__poster">\s*<img[^>]*?src="([^"]+)"/.exec(h);
   const back = /detail-hero__bg">\s*<img[^>]*?src="([^"]+)"/.exec(h);
   const genres = [...new Set([...h.matchAll(/class="detail-hero__genre">\s*([^<]+?)\s*<\/a>/g)].map((m) => text(m[1])))];
-  const seasons = [];
-  for (const p of h.split('<div class="episodes-list').slice(1)) {
-    const season = /id="season-(\d+)"/.exec(p);
-    if (!season) continue;
-    const eps = [];
-    for (const e of p.split('<a href="/').slice(1)) {
-      const link = /^(?:serie|anime)\/[^"\/]+\/temporada\/(\d+)\/capitulo\/(\d+)"/.exec(e);
-      if (!link) continue;
-      const name = /episode-item__title">([\s\S]*?)<\/span>/.exec(e);
-      eps.push({ season: Number(link[1]), number: Number(link[2]), title: name ? text(name[1]) : "" });
-    }
-    if (eps.length) seasons.push({ season: Number(season[1]), episodes: eps });
+  // Episodes (2026-11 redesign): each is an <a class="episode-item" ... data-season="N" data-episode="M"> with an
+  // episode-item__title. (Was a /temporada/N/capitulo/N link inside a .episodes-list grouped under id="season-N".)
+  const bySeason = new Map();
+  for (const e of h.split('class="episode-item"').slice(1)) {
+    const sm = /data-season="(\d+)"/.exec(e), em = /data-episode="(\d+)"/.exec(e);
+    if (!sm || !em) continue;
+    const name = /episode-item__title">([\s\S]*?)<\/span>/.exec(e);
+    const season = Number(sm[1]);
+    if (!bySeason.has(season)) bySeason.set(season, []);
+    bySeason.get(season).push({ season, number: Number(em[1]), title: name ? text(name[1]) : "" });
   }
+  const seasons = [...bySeason.keys()].sort((a, b) => a - b).map((s) => ({ season: s, episodes: bySeason.get(s) }));
   return {
     title: text(t[1]), overview: desc ? text(desc[1]) : "", year: year ? Number(year[1]) : undefined, rating: rate ? Number(rate[1]) : undefined,
     genres, poster: poster ? poster[1] : "", backdrop: back ? back[1] : "", seasons,
