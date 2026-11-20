@@ -111,6 +111,53 @@ function parseLatestEpisodes(html) {
 }
 var hasEpisodes = (html) => /\/temporada\/\d+\/capitulo\/\d+"/.test(String(html || ""));
 
+// src/anubis.js
+var API = "/.within.website/x/cmd/anubis/api/pass-challenge";
+function anubisChallenge(html) {
+  const m = /<script id="anubis_challenge"[^>]*>([\s\S]*?)<\/script>/.exec(String(html || ""));
+  if (!m) return null;
+  let j;
+  try {
+    j = JSON.parse(m[1]);
+  } catch (_) {
+    return null;
+  }
+  const c = j && j.challenge, r = j && j.rules;
+  if (!c || typeof c.randomData !== "string" || typeof c.id !== "string" || !r) return null;
+  const difficulty = Number(r.difficulty);
+  if (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 6) return null;
+  return { data: c.randomData, id: c.id, difficulty };
+}
+function solveAnubis(kino2, data, difficulty) {
+  const zeros = "0".repeat(difficulty);
+  for (let nonce = 0; nonce < 2e7; nonce++) {
+    const hash = kino2.crypto.hash("sha256", data + nonce);
+    if (hash.startsWith(zeros)) return { hash, nonce };
+  }
+  return null;
+}
+async function getThroughAnubis(kino2, req, url, opts) {
+  const started = Date.now();
+  let r = await req(url, opts);
+  if (!r.ok) return null;
+  let html = await r.text();
+  const ch = anubisChallenge(html);
+  if (!ch) return html;
+  const sol = solveAnubis(kino2, ch.data, ch.difficulty);
+  if (!sol) return html;
+  const origin = new URL(url).origin;
+  const elapsed = Math.max(1e3, Date.now() - started);
+  const pass = `${origin}${API}?id=${encodeURIComponent(ch.id)}&response=${sol.hash}&nonce=${sol.nonce}&redir=${encodeURIComponent(url)}&elapsedTime=${elapsed}`;
+  try {
+    const rp = await req(pass, opts);
+    if (rp && typeof rp.text === "function") await rp.text();
+  } catch (_) {
+  }
+  const r2 = await req(url, opts);
+  if (!r2 || !r2.ok) return html;
+  return r2.text();
+}
+
 // src/embed69.js
 var SITE = "https://embed69.org";
 function decryptLink(kino2, keyHex, b64) {
@@ -150,14 +197,14 @@ async function servers(kino2, req, id, fallbackUrl) {
   const urls = [`${SITE}/f/${id}`];
   if (fallbackUrl) urls.push(fallbackUrl);
   for (const url of urls) {
-    let r;
+    let html;
     try {
-      r = await req(url, { headers: url.startsWith(SITE) ? {} : { Referer: new URL(url).origin + "/" } });
+      html = await getThroughAnubis(kino2, req, url, { headers: url.startsWith(SITE) ? {} : { Referer: new URL(url).origin + "/" } });
     } catch (_) {
       continue;
     }
-    if (!r.ok) continue;
-    const rows = serversOf(kino2, await r.text());
+    if (html == null) continue;
+    const rows = serversOf(kino2, html);
     if (rows.length) return rows;
   }
   return [];
