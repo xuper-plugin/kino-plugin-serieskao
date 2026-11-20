@@ -1,14 +1,14 @@
 {
   "id": "serieskao",
   "name": "SeriesKao",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "apiVersion": 20,
   "entry": "plugin.js",
   "icon": "icon.png",
   "description": "Series, anime, doramas y películas en español de serieskao.top: sección propia, géneros, búsqueda, episodios y varios servidores por título.",
   "author": "xuper-plugin",
   "homepage": "https://github.com/xuper-plugin/kino-plugin-serieskao",
-  "discoverable": false,
+  "discoverable": true,
   "hosts": [
     "serieskao.top",
     "embed69.org",
