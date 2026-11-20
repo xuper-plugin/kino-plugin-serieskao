@@ -1,8 +1,8 @@
 {
   "id": "serieskao",
   "name": "SeriesKao",
-  "version": "0.1.3",
-  "apiVersion": 9,
+  "version": "0.2.0",
+  "apiVersion": 20,
   "entry": "plugin.js",
   "icon": "icon.png",
   "description": "Series, anime, doramas y películas en español de serieskao.top: sección propia, géneros, búsqueda, episodios y varios servidores por título.",
@@ -126,5 +126,17 @@
     }
   ],
   "telemetry": true,
-  "fetchHosts": "any"
+  "fetchHosts": "any",
+  "recommends": [
+    "xuper-plugin/kino-plugin-kino-resolver"
+  ],
+  "consumes": {
+    "resolver": {
+      "repo": "xuper-plugin/kino-plugin-kino-resolver",
+      "door": "resolver",
+      "calls": [
+        "resolve"
+      ]
+    }
+  }
 }
