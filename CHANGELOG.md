@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.12
+
+- Servers ordered by how well each hoster plays (kino-resolver's ranking), in your language first (std 1.9.2)
+
 ## 0.3.11
 
 - A rich Home that opens at once: a ready slider (TMDB backdrops and synopses) and at least 4 rows in the repository's snapshot (std 1.8.1)

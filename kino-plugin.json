@@ -1,7 +1,7 @@
 {
   "id": "serieskao",
   "name": "SeriesKao",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "apiVersion": 30,
   "entry": "plugin.js",
   "icon": "icon.png",
@@ -135,7 +135,10 @@
     "resolver": {
       "repo": "xuper-plugin/kino-plugin-kino-resolver",
       "door": "resolver",
-      "calls": ["resolve", "rank"]
+      "calls": [
+        "resolve",
+        "rank"
+      ]
     }
   },
   "screen": {
@@ -182,6 +185,6 @@
   },
   "signature": {
     "authorKey": "6693946bd5c56196960959c4b9665fad5094374bcb85ddb282f8bf762c835263",
-    "value": "80026aa9d93ed90f8576263df7ff01f2b77a81e3a3384fad740be1c584d95cb7dd09045b048d255bfd3972f18dfddbbf138019fea169544629e963e472425805"
+    "value": "b7d62e7193558fbbe386802dc83f7c95d1c8470e8b546fa94bb21a5ba569bd9724ecc51e039cb4724525b4f76a39e64c112ab2badea0859ceec96bd25107ab04"
   }
 }
