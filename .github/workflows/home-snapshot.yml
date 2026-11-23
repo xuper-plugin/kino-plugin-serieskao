@@ -20,6 +20,8 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/home-snapshot.mjs
+        env:
+          KINO_TMDB_KEY: ${{ secrets.KINO_TMDB_KEY }}
       - name: Commit the snapshot
         run: |
           git add home

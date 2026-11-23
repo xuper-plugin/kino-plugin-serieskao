@@ -1,7 +1,7 @@
 {
   "id": "serieskao",
   "name": "SeriesKao",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "apiVersion": 30,
   "entry": "plugin.js",
   "icon": "icon.png",
@@ -184,6 +184,6 @@
   },
   "signature": {
     "authorKey": "6693946bd5c56196960959c4b9665fad5094374bcb85ddb282f8bf762c835263",
-    "value": "ff302e6678d41956a1617ca1d1e99373169f5a4b1ff6faa09b5e88daacdf591b3ac1acfd7930be724d8fc40d0cd090e323dec24af9d97a8b22149872ba97fe0b"
+    "value": "80026aa9d93ed90f8576263df7ff01f2b77a81e3a3384fad740be1c584d95cb7dd09045b048d255bfd3972f18dfddbbf138019fea169544629e963e472425805"
   }
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.11
+
+- A rich Home that opens at once: a ready slider (TMDB backdrops and synopses) and at least 4 rows in the repository's snapshot (std 1.8.1)
+
 ## 0.3.10
 
 - The Home opens from a ready copy in this repository (home/<tab>.json, refreshed every 6 hours), the site only as a fallback (std 1.8.0)
