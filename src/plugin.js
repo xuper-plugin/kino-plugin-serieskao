@@ -329,7 +329,7 @@ async function resolverInstalled() {
 // SeriesKao delegates every hoster to kino-resolver (the hidden-browser capture is only a fallback for a few gate hosts), so
 // it does not play without it: the screen is the install gate while it is missing, and resolve() refuses.
 let std = null;
-const standard = () => (std ??= makeStandardScreen({
+const standard = () => (std ??= makeStandardScreen({ snapshot: "xuper-plugin/kino-plugin-serieskao",
   kino, name: "SeriesKao", logo: LOGO, logoAspect: LOGO_ASPECT, needsResolver: true, hasSettings: true,
   tabs: [
     { id: "inicio", label: "Inicio", labelEn: "Home" },

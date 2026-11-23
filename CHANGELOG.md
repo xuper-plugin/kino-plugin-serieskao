@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.10
+
+- The Home opens from a ready copy in this repository (home/<tab>.json, refreshed every 6 hours), the site only as a fallback (std 1.8.0)
+
 ## 0.3.9
 
 - Back arrow instead of the X: leaving goes back to where you came from (std 1.7.1)
