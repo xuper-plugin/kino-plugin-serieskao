@@ -1,4 +1,4 @@
-// std 1.0.0 — the standard screen of the xuper-plugin site plugins (golden copy: C:\dev\xuper-plugin\_standard\src\std).
+// std 1.1.0 — the standard screen of the xuper-plugin site plugins (golden copy: C:\dev\xuper-plugin\_standard\src\std).
 // Copy this folder as it is into a plugin's src/std/; a change goes to the golden copy first, then to every plugin.
 //
 // It paints at once from what is kept, then fills each tab as the source answers:
@@ -10,7 +10,7 @@
 // The bar's search hands the words to Kino's own search (this plugin as the source); a card or a slide opens Kino's own title
 // page. Ajustes is a page with Kino's own form of the plugin's settings and the donation.
 import { tabOf, recentOf, playedKey } from "./model.js";
-import { browseView, settingsView, gateView, RESOLVER_REPO } from "./view.js";
+import { browseView, settingsView, gateView, searchClosedOps, RESOLVER_REPO } from "./view.js";
 import { makeMetaCache } from "./metaCache.js";
 
 const TAB_KEY = "browseTab";
@@ -20,6 +20,8 @@ const SNAP_MAX = 20 * 1024;
 const RECENT_KEY = "recent1";
 const RECENT_MAX = 12;
 const Q_MAX = 200;
+// One tick's TMDB lookups: short, because the screen's events wait in line behind it (the titles left are asked on a later opening).
+const META_TICK_MS = 3_000;
 const DEFAULT_TABS = [{ id: "inicio", label: "Inicio", labelEn: "Home" }];
 
 /**
@@ -87,9 +89,10 @@ export function makeStandardScreen({ kino, name, nameEn, logo = null, logoAspect
     const a = route && route.args && typeof route.args === "object" ? route.args : {};
     return TAB_IDS.includes(a.tab) ? a.tab : null;
   };
-  function needed(tab, device) {
-    const order = [tab, ...TAB_IDS.filter((t) => t !== tab)];
-    return order.filter((t, i) => (i === 0 || device !== "tv") && !(memo.get(t) && memo.get(t).whole));
+  // Only the active tab loads: a tab is fetched when it is selected. Every plugin call waits in line with the screen's events,
+  // so prefetching the other tabs made a tap (Ajustes, the search) wait seconds behind their network loads.
+  function needed(tab) {
+    return memo.get(tab) && memo.get(tab).whole ? [] : [tab];
   }
 
   function screen(ctx) {
@@ -102,7 +105,7 @@ export function makeStandardScreen({ kino, name, nameEn, logo = null, logoAspect
     const data = enrich(dataOf(tab));
     const loaded = TAB_IDS.map((t) => memo.get(t)).filter(Boolean).map((m) => m.data);
     const pending = Array.isArray(st.pending) && st.pending.length > 0;
-    return browseView(cfg, { tab, data, recent: meta.dress(recentOf(readKeys(), loaded)), pending, failed: !!(st.failed && st.failed[tab]), searching: !!st.searching, device });
+    return browseView(cfg, { tab, data, recent: meta.dress(recentOf(readKeys(), loaded)), pending, failed: !!(st.failed && st.failed[tab]), device });
   }
 
   async function load(tab) {
@@ -115,7 +118,7 @@ export function makeStandardScreen({ kino, name, nameEn, logo = null, logoAspect
     open({ route, state, device }) {
       const tab = tabFromArgs(route) ?? (TAB_IDS.includes(state.tab) ? state.tab : stored() ?? TAB_IDS[0]);
       for (const t of TAB_IDS) dataOf(t); // the kept copies, so a played title is found whichever tab it was on
-      return { state: { tab, pending: needed(tab, device), failed: null, searching: false } };
+      return { state: { tab, pending: needed(tab), failed: null } };
     },
     tab({ value, arg, state }) {
       const tab = TAB_IDS.includes(value) ? value : TAB_IDS.includes(arg) ? arg : null;
@@ -127,9 +130,9 @@ export function makeStandardScreen({ kino, name, nameEn, logo = null, logoAspect
       const pending = [tab, ...(Array.isArray(state.pending) ? state.pending.filter((t) => t !== tab) : [])];
       return { state: { tab, pending: memo.get(tab) && memo.get(tab).whole ? pending.slice(1) : pending, failed } };
     },
-    retry({ state, device }) {
+    retry({ state }) {
       const tab = TAB_IDS.includes(state.tab) ? state.tab : TAB_IDS[0];
-      return { state: { failed: null, pending: [tab, ...needed(tab, device).filter((t) => t !== tab)] } };
+      return { state: { failed: null, pending: [tab] } };
     },
     async tick({ state }) {
       const pending = Array.isArray(state.pending) ? state.pending : [];
@@ -139,7 +142,7 @@ export function makeStandardScreen({ kino, name, nameEn, logo = null, logoAspect
       // The TMDB ids and title logos of a tab's first titles (slides first), a few lookups per tick.
       if (next.startsWith("meta:")) {
         const m = memo.get(next.slice(5));
-        if (m) await meta.fill([...m.data.slides.map((s) => ({ id: s.id, title: s.title, kind: s.kind })), ...m.data.rails.flatMap((r) => r.items.slice(0, 6).map((x) => ({ id: x.id, title: x.title, kind: x.kind })))], 12_000);
+        if (m) await meta.fill([...m.data.slides.map((s) => ({ id: s.id, title: s.title, kind: s.kind })), ...m.data.rails.flatMap((r) => r.items.slice(0, 6).map((x) => ({ id: x.id, title: x.title, kind: x.kind })))], META_TICK_MS);
         return { state: { pending: rest } };
       }
       try {
@@ -152,14 +155,12 @@ export function makeStandardScreen({ kino, name, nameEn, logo = null, logoAspect
       }
       return { state: { pending: rest, failed } };
     },
-    openSearch() { return { state: { searching: true } }; },
-    closeSearch() { return { state: { searching: false } }; },
-    // The words go to Kino's own search, with this plugin as the source.
-    search({ value, state }) {
+    // The words go to Kino's own search, with this plugin as the source; the bar is put back as it was, locally.
+    search({ value, state, device }) {
       const typed = value && typeof value === "object" ? value.q : value;
       const raw = typed != null && String(typed).trim() !== "" ? typed : state.inputs && state.inputs.q;
       const q = String(raw == null ? "" : raw).trim().slice(0, Q_MAX);
-      return q ? { go: { search: { q } }, state: { searching: false } } : { state: { searching: false } };
+      return q ? { go: { search: { q } }, ui: searchClosedOps(device === "tv" && TAB_IDS.length > 1) } : null;
     },
     openSettings() { return { route: { push: "settings" }, state: { fromBrowse: true } }; },
     back({ state, route }) {

@@ -50,42 +50,66 @@ test("bar has logo, name, search and settings", async () => {
   const s = make();
   const tree = await s.screen({ state: {}, device: "phone", installed });
   assert.equal(tree.appBar.mergeWithKinoBar, true);
-  assert.equal(tree.appBar.title.type, "Row");
-  const kids = tree.appBar.title.children;
+  const kids = nodes(tree.appBar.title);
   assert.ok(kids.some((n) => n.type === "Image" && n.url === LOGO));
   assert.ok(kids.some((n) => n.type === "Text" && n.text === "SeriesKao"));
   assert.deepEqual(tree.appBar.actions.map((a) => a.icon), ["search", "settings"]);
+  // The search box and its back arrow are in the bar from the start, hidden.
+  assert.equal(kids.find((n) => n.key === "q").hidden, true);
+  assert.equal(kids.find((n) => n.key === "closeSearch").hidden, true);
   assert.equal(tree.floatingActionButton, undefined);
 });
 
 test("bar without a logo still has the name", async () => {
   const tree = await make({ logo: null }).screen({ state: {}, device: "phone", installed });
-  const kids = tree.appBar.title.children;
+  const kids = nodes(tree.appBar.title);
   assert.ok(!kids.some((n) => n.type === "Image"));
   assert.ok(kids.some((n) => n.type === "Text" && n.text === "SeriesKao"));
 });
 
-test("search swaps the bar", async () => {
-  const s = make();
-  assert.deepEqual(await s.screenEvent({ name: "openSearch", state: {} }), { state: { searching: true } });
-  const tree = await s.screen({ state: { searching: true }, device: "phone", installed });
-  assert.equal(tree.appBar.title.type, "TextField");
-  assert.equal(tree.appBar.title.kind, "search");
-  assert.equal(tree.appBar.title.onSubmitted, "search");
-  assert.equal(tree.appBar.leading.icon, "arrow_back");
-  assert.equal(tree.appBar.leading.onPressed, "closeSearch");
-  assert.deepEqual(await s.screenEvent({ name: "closeSearch", state: { searching: true } }), { state: { searching: false } });
+/** The ui operations of an action, as "op:key" strings. */
+const ops = (action) => (action && action.ui ? action.ui.map((o) => Object.entries(o).map(([k, v]) => k + ":" + v)[0]) : []);
+
+test("search opens and closes in the bar locally, with no plugin call", async () => {
+  const tree = await make().screen({ state: {}, device: "phone", installed });
+  const all = nodes(tree.appBar);
+  const open = all.find((n) => n.key === "searchButton").onPressed;
+  assert.equal(open.event, undefined, "no event: Kino does it at once");
+  assert.deepEqual(ops(open).sort(), ["focus:q", "hide:brand", "hide:searchButton", "hide:settingsButton", "show:closeSearch", "show:q"].sort());
+  const close = all.find((n) => n.key === "closeSearch");
+  assert.equal(close.icon, "arrow_back");
+  assert.equal(close.onPressed.event, undefined);
+  assert.deepEqual(ops(close.onPressed).sort(), ["clear:q", "hide:closeSearch", "hide:q", "show:brand", "show:searchButton", "show:settingsButton"].sort());
+  const q = all.find((n) => n.key === "q");
+  assert.equal(q.type, "TextField");
+  assert.equal(q.kind, "search");
+  assert.equal(q.onSubmitted, "search");
+  assert.ok(ops(open).length <= 8 && ops(close.onPressed).length <= 8);
 });
 
-test("search goes to Kino's search", async () => {
+test("TV with tabs: the search hides and brings back the tabs in the bar too", async () => {
+  const s = make({ tabs: [{ id: "a", label: "A", labelEn: "A" }, { id: "b", label: "B", labelEn: "B" }] });
+  const all = nodes((await s.screen({ state: {}, device: "tv", installed })).appBar);
+  assert.ok(ops(all.find((n) => n.key === "searchButton").onPressed).includes("hide:tabs"));
+  assert.ok(ops(all.find((n) => n.key === "closeSearch").onPressed).includes("show:tabs"));
+});
+
+test("search goes to Kino's search and puts the bar back", async () => {
   const s = make();
-  assert.deepEqual(await s.screenEvent({ name: "search", value: "  dune ", state: { searching: true } }),
-    { go: { search: { q: "dune" } }, state: { searching: false } });
-  assert.deepEqual(await s.screenEvent({ name: "search", value: "   ", state: { searching: true } }), { state: { searching: false } });
-  assert.deepEqual(await s.screenEvent({ name: "search", value: null, state: { searching: true, inputs: { q: "alien" } } }),
-    { go: { search: { q: "alien" } }, state: { searching: false } });
+  const done = await s.screenEvent({ name: "search", value: "  dune ", state: {} });
+  assert.deepEqual(done.go, { search: { q: "dune" } });
+  assert.deepEqual(ops(done).sort(), ["clear:q", "hide:closeSearch", "hide:q", "show:brand", "show:searchButton", "show:settingsButton"].sort());
+  const empty = await s.screenEvent({ name: "search", value: "   ", state: {} });
+  assert.equal(empty, null, "nothing typed: nothing happens");
+  assert.deepEqual((await s.screenEvent({ name: "search", value: null, state: { inputs: { q: "alien" } } })).go, { search: { q: "alien" } });
   const long = await s.screenEvent({ name: "search", value: "x".repeat(300), state: {} });
   assert.equal(long.go.search.q.length, 200);
+});
+
+test("open loads only the active tab: no prefetch holding the event queue", async () => {
+  const s = make({ tabs: [{ id: "a", label: "A", labelEn: "A" }, { id: "b", label: "B", labelEn: "B" }] });
+  const r = await s.screenEvent({ name: "open", state: {}, device: "phone", route: { name: "main" } });
+  assert.deepEqual(r.state.pending, ["a"]);
 });
 
 test("settings page: Kino's form when the plugin has settings, donate always", async () => {
@@ -165,7 +189,6 @@ test("every user text has its English twin", async () => {
   const s = make();
   const trees = [
     await s.screen({ state: await loaded(s), device: "phone", installed }),
-    await s.screen({ state: { searching: true }, device: "phone", installed }),
     await s.screen({ state: {}, route: { name: "settings" }, device: "tv", installed }),
     await s.screen({ state: {}, device: "phone", installed: {} }),
   ];

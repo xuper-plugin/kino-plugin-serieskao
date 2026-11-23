@@ -405,6 +405,24 @@ var tabBar = (tabs, active) => ({
   tabs: tabs.map((t2) => ({ value: t2.id, label: t2.label, labelEn: t2.labelEn || t2.label }))
 });
 var iconButton = (key, icon, word, onPressed) => ({ type: "IconButton", key, icon, ...twin(word, "labelText"), ...twin(word, "tooltip"), onPressed });
+var searchOpenOps = (tabsInBar) => [
+  { hide: "brand" },
+  { hide: "searchButton" },
+  { hide: "settingsButton" },
+  ...tabsInBar ? [{ hide: "tabs" }] : [],
+  { show: "closeSearch" },
+  { show: "q" },
+  { focus: "q" }
+];
+var searchClosedOps = (tabsInBar) => [
+  { hide: "closeSearch" },
+  { hide: "q" },
+  { clear: "q" },
+  { show: "brand" },
+  { show: "searchButton" },
+  { show: "settingsButton" },
+  ...tabsInBar ? [{ show: "tabs" }] : []
+];
 function supportNode(device) {
   if (device === "tv") return { type: "QrImage", key: "donate", value: SUPPORT_URL, size: "large", ...twin("supportTv", "labelText") };
   return { type: "ElevatedButton", key: "donate", icon: "heart", ...twin("support", "labelText"), onPressed: { go: { url: { href: SUPPORT_URL } } } };
@@ -448,7 +466,7 @@ var rail = (r, key, words) => ({
   ...r.ref ? { ref: r.ref } : {},
   items: r.items
 });
-function browseView(cfg, { tab, data, recent, pending, failed, searching, device = "phone" }) {
+function browseView(cfg, { tab, data, recent, pending, failed, device = "phone" }) {
   const tv = device === "tv";
   const tabs = cfg.tabs;
   const active = tabs.some((t2) => t2.id === tab) ? tab : tabs[0].id;
@@ -466,25 +484,31 @@ function browseView(cfg, { tab, data, recent, pending, failed, searching, device
   }
   const isBanner = (n) => !!n && (n.type === "heroCard" || n.key === "heroSkeleton" || n.type === "PageView" && String(n.key).startsWith("hero"));
   const banner = body.length > 0 && isBanner(body[0]) ? body.shift() : null;
-  const appBar = searching ? bar({
-    leading: iconButton("closeSearch", "arrow_back", "close", "closeSearch"),
-    title: {
-      type: "TextField",
-      key: "q",
-      kind: "search",
-      autofocus: true,
-      maxLength: 200,
-      ...twin("searchHint", "hintText", { name: [cfg.name, cfg.nameEn || cfg.name] }),
-      onSubmitted: "search",
-      trailingIcon: "search",
-      ...twin("search", "trailingLabel"),
-      onTrailingTap: "search"
-    }
-  }) : bar({
+  const tabsInBar = tv && withTabs;
+  const appBar = bar({
     leading: iconButton("close", "close", "close", { go: { close: true } }),
-    // On a TV the tabs sit in the bar beside the brand (one row, one D-pad strip); elsewhere they are pinned under it.
-    title: tv && withTabs ? { type: "Row", key: "titleRow", gap: 24, crossAxisAlignment: "center", children: [brand(cfg), tabBar(tabs, active)] } : brand(cfg),
-    actions: [iconButton("searchButton", "search", "search", "openSearch"), iconButton("settingsButton", "settings", "settings", "openSettings")]
+    title: { type: "Row", key: "titleRow", gap: tabsInBar ? 24 : 8, crossAxisAlignment: "center", children: [
+      { ...iconButton("closeSearch", "arrow_back", "back", { ui: searchClosedOps(tabsInBar) }), hidden: true },
+      brand(cfg),
+      ...tabsInBar ? [tabBar(tabs, active)] : [],
+      {
+        type: "TextField",
+        key: "q",
+        hidden: true,
+        flex: 1,
+        kind: "search",
+        maxLength: 200,
+        ...twin("searchHint", "hintText", { name: [cfg.name, cfg.nameEn || cfg.name] }),
+        onSubmitted: "search",
+        trailingIcon: "search",
+        ...twin("search", "trailingLabel"),
+        onTrailingTap: "search"
+      }
+    ] },
+    actions: [
+      iconButton("searchButton", "search", "search", { ui: searchOpenOps(tabsInBar) }),
+      iconButton("settingsButton", "settings", "settings", "openSettings")
+    ]
   });
   return {
     type: "Scaffold",
@@ -595,6 +619,7 @@ var SNAP_MAX = 20 * 1024;
 var RECENT_KEY = "recent1";
 var RECENT_MAX = 12;
 var Q_MAX = 200;
+var META_TICK_MS = 3e3;
 var DEFAULT_TABS = [{ id: "inicio", label: "Inicio", labelEn: "Home" }];
 function makeStandardScreen({ kino: kino2, name, nameEn, logo = null, logoAspect = "1:1", needsResolver, hasSettings, tabs, loadTab, homeKey = null }) {
   const cfg = { name, nameEn, logo, logoAspect, hasSettings: !!hasSettings, tabs: Array.isArray(tabs) && tabs.length > 0 ? tabs : DEFAULT_TABS };
@@ -689,9 +714,8 @@ function makeStandardScreen({ kino: kino2, name, nameEn, logo = null, logoAspect
     const a = route && route.args && typeof route.args === "object" ? route.args : {};
     return TAB_IDS.includes(a.tab) ? a.tab : null;
   };
-  function needed(tab, device) {
-    const order = [tab, ...TAB_IDS.filter((t2) => t2 !== tab)];
-    return order.filter((t2, i) => (i === 0 || device !== "tv") && !(memo.get(t2) && memo.get(t2).whole));
+  function needed(tab) {
+    return memo.get(tab) && memo.get(tab).whole ? [] : [tab];
   }
   function screen2(ctx) {
     const c = ctx || {};
@@ -703,7 +727,7 @@ function makeStandardScreen({ kino: kino2, name, nameEn, logo = null, logoAspect
     const data = enrich(dataOf(tab));
     const loaded = TAB_IDS.map((t2) => memo.get(t2)).filter(Boolean).map((m) => m.data);
     const pending = Array.isArray(st.pending) && st.pending.length > 0;
-    return browseView(cfg, { tab, data, recent: meta.dress(recentOf(readKeys(), loaded)), pending, failed: !!(st.failed && st.failed[tab]), searching: !!st.searching, device });
+    return browseView(cfg, { tab, data, recent: meta.dress(recentOf(readKeys(), loaded)), pending, failed: !!(st.failed && st.failed[tab]), device });
   }
   async function load(tab) {
     const data = tabOf(await loadTab(tab));
@@ -717,7 +741,7 @@ function makeStandardScreen({ kino: kino2, name, nameEn, logo = null, logoAspect
     open({ route, state, device }) {
       const tab = tabFromArgs(route) ?? (TAB_IDS.includes(state.tab) ? state.tab : stored() ?? TAB_IDS[0]);
       for (const t2 of TAB_IDS) dataOf(t2);
-      return { state: { tab, pending: needed(tab, device), failed: null, searching: false } };
+      return { state: { tab, pending: needed(tab), failed: null } };
     },
     tab({ value, arg, state }) {
       const tab = TAB_IDS.includes(value) ? value : TAB_IDS.includes(arg) ? arg : null;
@@ -729,9 +753,9 @@ function makeStandardScreen({ kino: kino2, name, nameEn, logo = null, logoAspect
       const pending = [tab, ...Array.isArray(state.pending) ? state.pending.filter((t2) => t2 !== tab) : []];
       return { state: { tab, pending: memo.get(tab) && memo.get(tab).whole ? pending.slice(1) : pending, failed } };
     },
-    retry({ state, device }) {
+    retry({ state }) {
       const tab = TAB_IDS.includes(state.tab) ? state.tab : TAB_IDS[0];
-      return { state: { failed: null, pending: [tab, ...needed(tab, device).filter((t2) => t2 !== tab)] } };
+      return { state: { failed: null, pending: [tab] } };
     },
     async tick({ state }) {
       const pending = Array.isArray(state.pending) ? state.pending : [];
@@ -740,7 +764,7 @@ function makeStandardScreen({ kino: kino2, name, nameEn, logo = null, logoAspect
       const failed = { ...state.failed || {} };
       if (next.startsWith("meta:")) {
         const m = memo.get(next.slice(5));
-        if (m) await meta.fill([...m.data.slides.map((s) => ({ id: s.id, title: s.title, kind: s.kind })), ...m.data.rails.flatMap((r) => r.items.slice(0, 6).map((x) => ({ id: x.id, title: x.title, kind: x.kind })))], 12e3);
+        if (m) await meta.fill([...m.data.slides.map((s) => ({ id: s.id, title: s.title, kind: s.kind })), ...m.data.rails.flatMap((r) => r.items.slice(0, 6).map((x) => ({ id: x.id, title: x.title, kind: x.kind })))], META_TICK_MS);
         return { state: { pending: rest } };
       }
       try {
@@ -754,18 +778,12 @@ function makeStandardScreen({ kino: kino2, name, nameEn, logo = null, logoAspect
       }
       return { state: { pending: rest, failed } };
     },
-    openSearch() {
-      return { state: { searching: true } };
-    },
-    closeSearch() {
-      return { state: { searching: false } };
-    },
-    // The words go to Kino's own search, with this plugin as the source.
-    search({ value, state }) {
+    // The words go to Kino's own search, with this plugin as the source; the bar is put back as it was, locally.
+    search({ value, state, device }) {
       const typed = value && typeof value === "object" ? value.q : value;
       const raw = typed != null && String(typed).trim() !== "" ? typed : state.inputs && state.inputs.q;
       const q = String(raw == null ? "" : raw).trim().slice(0, Q_MAX);
-      return q ? { go: { search: { q } }, state: { searching: false } } : { state: { searching: false } };
+      return q ? { go: { search: { q } }, ui: searchClosedOps(device === "tv" && TAB_IDS.length > 1) } : null;
     },
     openSettings() {
       return { route: { push: "settings" }, state: { fromBrowse: true } };

@@ -24,6 +24,18 @@ const tabBar = (tabs, active) => ({
 
 const iconButton = (key, icon, word, onPressed) => ({ type: "IconButton", key, icon, ...twin(word, "labelText"), ...twin(word, "tooltip"), onPressed });
 
+/** The bar as the search box: the brand, its buttons (and the TV's tabs) hidden, the box shown and focused. At most 8 ops. */
+export const searchOpenOps = (tabsInBar) => [
+  { hide: "brand" }, { hide: "searchButton" }, { hide: "settingsButton" }, ...(tabsInBar ? [{ hide: "tabs" }] : []),
+  { show: "closeSearch" }, { show: "q" }, { focus: "q" },
+];
+
+/** The bar back as it was: the box hidden and emptied. At most 8 ops. */
+export const searchClosedOps = (tabsInBar) => [
+  { hide: "closeSearch" }, { hide: "q" }, { clear: "q" },
+  { show: "brand" }, { show: "searchButton" }, { show: "settingsButton" }, ...(tabsInBar ? [{ show: "tabs" }] : []),
+];
+
 /** The donation affordance: a QR on a TV (a TV cannot open a link well), a heart button elsewhere. */
 export function supportNode(device) {
   if (device === "tv") return { type: "QrImage", key: "donate", value: SUPPORT_URL, size: "large", ...twin("supportTv", "labelText") };
@@ -67,9 +79,8 @@ const rail = (r, key, words) => ({
 /**
  * The browse page. `data`: `{ slides, rails }` of the active tab, or null while it is not in. `recent`: the cards of the played
  * titles. `pending`: some tab is still being fetched (the timer polls only then). `failed`: the active tab could not load.
- * `searching`: the bar is the search box.
  */
-export function browseView(cfg, { tab, data, recent, pending, failed, searching, device = "phone" }) {
+export function browseView(cfg, { tab, data, recent, pending, failed, device = "phone" }) {
   const tv = device === "tv";
   const tabs = cfg.tabs;
   const active = tabs.some((t) => t.id === tab) ? tab : tabs[0].id;
@@ -88,18 +99,23 @@ export function browseView(cfg, { tab, data, recent, pending, failed, searching,
   const isBanner = (n) => !!n && (n.type === "heroCard" || n.key === "heroSkeleton" || (n.type === "PageView" && String(n.key).startsWith("hero")));
   const banner = body.length > 0 && isBanner(body[0]) ? body.shift() : null; // the main picture goes edge to edge, right under the bar
 
-  const appBar = searching
-    ? bar({
-      leading: iconButton("closeSearch", "arrow_back", "close", "closeSearch"),
-      title: { type: "TextField", key: "q", kind: "search", autofocus: true, maxLength: 200, ...twin("searchHint", "hintText", { name: [cfg.name, cfg.nameEn || cfg.name] }),
+  // The search box lives in the bar from the start, hidden: opening and closing it are local `ui` operations, drawn at once
+  // with no plugin call (a plugin call waits in line behind the tab loads, which made the bar slow to react).
+  const tabsInBar = tv && withTabs; // on a TV the tabs sit in the bar beside the brand (one D-pad strip); elsewhere under it
+  const appBar = bar({
+    leading: iconButton("close", "close", "close", { go: { close: true } }),
+    title: { type: "Row", key: "titleRow", gap: tabsInBar ? 24 : 8, crossAxisAlignment: "center", children: [
+      { ...iconButton("closeSearch", "arrow_back", "back", { ui: searchClosedOps(tabsInBar) }), hidden: true },
+      brand(cfg),
+      ...(tabsInBar ? [tabBar(tabs, active)] : []),
+      { type: "TextField", key: "q", hidden: true, flex: 1, kind: "search", maxLength: 200, ...twin("searchHint", "hintText", { name: [cfg.name, cfg.nameEn || cfg.name] }),
         onSubmitted: "search", trailingIcon: "search", ...twin("search", "trailingLabel"), onTrailingTap: "search" },
-    })
-    : bar({
-      leading: iconButton("close", "close", "close", { go: { close: true } }),
-      // On a TV the tabs sit in the bar beside the brand (one row, one D-pad strip); elsewhere they are pinned under it.
-      title: tv && withTabs ? { type: "Row", key: "titleRow", gap: 24, crossAxisAlignment: "center", children: [brand(cfg), tabBar(tabs, active)] } : brand(cfg),
-      actions: [iconButton("searchButton", "search", "search", "openSearch"), iconButton("settingsButton", "settings", "settings", "openSettings")],
-    });
+    ] },
+    actions: [
+      iconButton("searchButton", "search", "search", { ui: searchOpenOps(tabsInBar) }),
+      iconButton("settingsButton", "settings", "settings", "openSettings"),
+    ],
+  });
   return {
     type: "Scaffold",
     appBar,
