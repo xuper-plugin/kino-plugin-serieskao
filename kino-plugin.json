@@ -1,7 +1,7 @@
 {
   "id": "serieskao",
   "name": "SeriesKao",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "apiVersion": 30,
   "entry": "plugin.js",
   "icon": "icon.png",
@@ -154,5 +154,36 @@
       "labelEn": "Open SeriesKao"
     },
     "settingsIn": "both"
+  },
+  "provides": {
+    "catalog": {
+      "summary": "Titles this plugin finds, for the author's other plugins",
+      "calls": {
+        "search": {
+          "in": {
+            "q": "string",
+            "type": "string?"
+          },
+          "out": "Item[]"
+        }
+      },
+      "types": {
+        "Item": {
+          "id": "string",
+          "ref": "string",
+          "title": "string",
+          "kind": "string",
+          "poster": "string?",
+          "backdrop": "string?",
+          "year": "string?",
+          "overview": "string?",
+          "tmdb": "number?"
+        }
+      }
+    }
+  },
+  "signature": {
+    "authorKey": "6693946bd5c56196960959c4b9665fad5094374bcb85ddb282f8bf762c835263",
+    "value": "3580f297bd873637eb3397007070f9966f1ee86902852d02cc710d9a1719ff388124fad6ac74643ebcbf9b253f477e06e011aa71d687be20f624b9758b81eb0b"
   }
 }
