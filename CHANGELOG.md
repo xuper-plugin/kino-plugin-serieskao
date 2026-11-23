@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+
+- Cards get their TMDB id again and slides their title logo (std 1.3.0): std 1.1.0 had stopped every TMDB lookup.
+
 ## 0.3.1
 
 - The bar reacts at once (std 1.1.0): opening and closing the search no longer calls the plugin, and Ajustes no longer waits behind the other tabs, which now load when selected.
