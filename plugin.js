@@ -62,8 +62,8 @@ function parsePager(html) {
 }
 function parseTitle(html) {
   const h = String(html || "");
-  const t3 = /<h1 class="detail-hero__title">([\s\S]*?)<\/h1>/.exec(h);
-  if (!t3) return null;
+  const t2 = /<h1 class="detail-hero__title">([\s\S]*?)<\/h1>/.exec(h);
+  if (!t2) return null;
   const desc = /<h2 class="detail-hero__desc">([\s\S]*?)<\/h2>/.exec(h);
   const meta = /detail-hero__meta">([\s\S]*?)<\/div>/.exec(h);
   const year = meta ? /<span>\s*(\d{4})\s*<\/span>/.exec(meta[1]) : null;
@@ -82,7 +82,7 @@ function parseTitle(html) {
   }
   const seasons = [...bySeason.keys()].sort((a, b) => a - b).map((s) => ({ season: s, episodes: bySeason.get(s) }));
   return {
-    title: text(t3[1]),
+    title: text(t2[1]),
     overview: desc ? text(desc[1]) : "",
     year: year ? Number(year[1]) : void 0,
     rating: rate ? Number(rate[1]) : void 0,
@@ -264,9 +264,8 @@ function makeReq(kino2, { deadline }) {
   return req;
 }
 
-// src/browse/model.js
-var TAB_IDS = ["inicio", "peliculas", "series"];
-var MAX_SLIDES = 6;
+// src/std/model.js
+var MAX_SLIDES = 5;
 var MAX_RAILS = 8;
 var MAX_RAIL_ITEMS = 20;
 var MAX_SLIDE_TEXT = 160;
@@ -284,22 +283,26 @@ function cardOf(item) {
   return out;
 }
 function slidesOf(rows) {
+  const byBackdrop = pickSlides(rows, (item) => item.backdrop);
+  return byBackdrop.length > 0 ? byBackdrop : pickSlides(rows, (item) => item.poster);
+}
+function pickSlides(rows, pictureOf) {
   const out = [];
   const seen = /* @__PURE__ */ new Set();
   for (const row of rows) {
-    for (const item of row.items) {
+    for (const item of row.items || []) {
       if (out.length >= MAX_SLIDES) return out;
-      if (item.adult === true || seen.has(item.id) || !item.backdrop || !HTTPS.test(item.backdrop)) continue;
+      const image = pictureOf(item);
+      if (item.adult === true || seen.has(item.id) || !image || !HTTPS.test(image)) continue;
       const text2 = typeof item.overview === "string" ? item.overview.trim() : "";
-      if (text2 === "") continue;
       seen.add(item.id);
       out.push({
         id: item.id,
         ref: item.ref,
         kind: item.kind,
         title: item.title,
-        image: item.backdrop,
-        text: text2.length <= MAX_SLIDE_TEXT ? text2 : `${text2.slice(0, MAX_SLIDE_TEXT - 1).trimEnd()}\u2026`
+        image,
+        text: text2 === "" ? [item.year, item.rating ? "\u2605 " + item.rating : null].filter(Boolean).join(" \xB7 ") : text2.length <= MAX_SLIDE_TEXT ? text2 : `${text2.slice(0, MAX_SLIDE_TEXT - 1).trimEnd()}\u2026`
       });
     }
   }
@@ -347,596 +350,67 @@ function recentOf(keys, tabs) {
   return out;
 }
 
-// src/i18n.js
+// src/std/strings.js
 var WORDS = {
-  es: {
-    notFound: "No encontr\xE9 este t\xEDtulo en espa\xF1ol.",
-    seasonMissing: "Latino todav\xEDa no tiene la temporada {season} de {title} en espa\xF1ol.",
-    episodeMissing: "Latino todav\xEDa no tiene el cap\xEDtulo {episode} de la temporada {season} de {title} en espa\xF1ol.",
-    notInSpanish: "no disponible en espa\xF1ol",
-    sourcesDown: "Las fuentes en espa\xF1ol no responden ahora.",
-    tmdbDown: "TMDB no responde ahora. Intenta de nuevo en un rato.",
-    noPlayable: "Encontr\xE9 el t\xEDtulo, pero ninguna copia abri\xF3. Intenta de nuevo en un rato.",
-    needResolver: "Para reproducir, abre Latino desde el men\xFA e instala el motor de reproducci\xF3n que te pedir\xE1.",
-    copyFailed: "Esta copia no abri\xF3. Prueba con otro servidor.",
-    lat: "Latino",
-    esp: "Castellano",
-    sub: "Subtitulado",
-    direct: "Directo",
-    keepOneSource: "Deja al menos una fuente encendida.",
-    healthOk: "ok",
-    healthFail: "falla",
-    healthNone: "sin datos",
-    healthOff: "apagada",
-    probeDone: "Prob\xE9 las fuentes con un t\xEDtulo de prueba: {ok} responden, {fail} fallan.",
-    probeNoTmdb: "No pude consultar TMDB para la prueba. Intenta de nuevo en un rato.",
-    probeNone: "No hay fuentes encendidas para probar.",
-    cacheCleared: "Listo: borr\xE9 {n} datos guardados.",
-    cacheClearedOne: "Listo: borr\xE9 1 dato guardado.",
-    prefsReset: "Restablec\xED tus preferencias.",
-    rowMovies: "Estrenos en latino",
-    rowSeries: "Series en latino",
-    rowHackstore: "Reci\xE9n agregadas",
-    rowHackstoreSeries: "Series reci\xE9n agregadas",
-    panelTitle: "Latino",
-    tabCopy: "Esta copia",
-    tabSummary: "Resumen",
-    tabAvail: "Disponibilidad",
-    tabPrefs: "Preferencias",
-    tabFail: "Si falla",
-    tabError: "No se pudo cargar esta pesta\xF1a",
-    nowPlaying: "Reproduciendo ahora",
-    copyLang: "Idioma: {v}",
-    copyQuality: "Calidad: {v}",
-    copyServer: "Servidor: {v}",
-    copySite: "Fuente: {v}",
-    copyManual: "Cambiaste de copia: la elegida sola era {v}",
-    copyChosen: "Elegida entre {n} copias",
-    copyChosenOne: "Elegida entre 1 copia",
-    copyNoInfo: "Todav\xEDa no s\xE9 qu\xE9 copia suena.",
-    statResolution: "Imagen {v}",
-    statNetwork: "Red {v}",
-    statStalls: "Cortes en esta sesi\xF3n: {v}",
-    netWifi: "Wi-Fi",
-    netEthernet: "cable",
-    netCellular: "datos m\xF3viles",
-    netOther: "otra red",
-    availNoTmdb: "Este t\xEDtulo no tiene ficha para revisar",
-    availPartial: "Respuesta parcial: algunas fuentes no contestaron",
-    availSeasons: "Temporadas sin versi\xF3n en espa\xF1ol: {v}",
-    availNone: "Ninguna fuente contest\xF3 con copias de este t\xEDtulo",
-    prefPreferred: "Idioma preferido",
-    prefMaxQuality: "Calidad m\xE1xima",
-    langLat: "Latino",
-    langEsp: "Castellano",
-    langSub: "Subtitulado",
-    qAuto: "Autom\xE1tica",
-    qUpTo: "Hasta {v}",
-    qUpTo480: "Hasta 480p (ahorra datos)",
-    prefAvoid: "Evitar {v}",
-    prefAvoidHint: "Pasa al final de la lista, no se borra",
-    prefReset: "Restablecer preferencias",
-    prefResetConfirm: "\xBFVolver a tus ajustes de siempre?",
-    prefApplies: "Se aplica al abrir la pr\xF3xima copia",
-    prefSaved: "Listo: se aplica en la pr\xF3xima copia",
-    nextEp: "Siguiente: T{s} \xB7 E{e}{tail}",
-    nextSeason: "Siguiente: temporada {s}, E{e}{tail}",
-    nextEnd: "Fin de la temporada {s}",
-    nextSpanish: "en espa\xF1ol en {v}",
-    nextSubOnly: "solo subtitulado",
-    nextNone: "no encontrado en espa\xF1ol",
-    nextChecking: "comprobando\u2026",
-    prefNow: "Ahora: {v}",
-    prefFirst: "{v} primero",
-    prefUpTo: "hasta {v}",
-    prefAutoQ: "calidad autom\xE1tica",
-    prefAvoidList: "evitar: {v}",
-    failTips: "Si una copia no abre: prueba otra desde el men\xFA Servidor, revisa tu Wi-Fi o int\xE9ntalo m\xE1s tarde.",
-    availNoEpisode: "sin este cap\xEDtulo",
-    availNoTitle: "sin esta pel\xEDcula",
-    availSeasonGone: "Esta temporada no tiene versi\xF3n en espa\xF1ol",
-    prefWins: "Lo que cambies aqu\xED manda sobre Ajustes hasta que uses Restablecer (abajo)",
-    failAllGood: "Todo bien: en esta sesi\xF3n no ha fallado ninguna copia",
-    failTimeout: "El servidor tard\xF3 en contestar",
-    failNetwork: "No hubo conexi\xF3n con el servidor",
-    failNotFound: "El servidor ya no tiene esta copia",
-    failUnavailable: "El servidor no est\xE1 disponible ahora",
-    failGeneric: "La copia no abri\xF3",
-    failTried: "Copias probadas: {v}",
-    failHowTo: "Abre el men\xFA Servidor del reproductor para elegir otra copia",
-    failReport: "Avisar de esta copia",
-    failReportConfirm: "Se enviar\xE1 un aviso t\xE9cnico sin datos personales",
-    failReported: "Listo: se env\xEDa el aviso si tienes los reportes activados",
-    failAlready: "Ya avis\xE9 de esta copia en las \xFAltimas 12 horas",
-    failReportOff: "El aviso no est\xE1 activo en Ajustes",
-    stallsHint: "Se ha cortado {n} veces: mira la pesta\xF1a Si falla",
-    sumRating: "Calificaci\xF3n {v}",
-    sumCast: "Reparto: {v}",
-    tabHome: "Inicio",
-    tabMovies: "Pel\xEDculas",
-    tabSeries: "Series",
-    brWatch: "Ver",
-    dEpisodeN: "Episodio {n}",
-    dSeasonN: "Temporada {n}",
-    dSeasonsN: "{n} temporadas",
-    dSeriesGo: "Ver episodios",
-    dMore: "M\xE1s opciones",
-    dCreators: "Creaci\xF3n: {v}",
-    dDirector: "Direcci\xF3n: {v}",
-    dCast: "Reparto",
-    dEpisodes: "Episodios",
-    dSimilar: "M\xE1s como esto",
-    dSeeInKino: "Ver en Kino",
-    brMore: "Ver m\xE1s",
-    brInfo: "M\xE1s informaci\xF3n",
-    brRecent: "Continuar viendo",
-    brSearch: "Buscar",
-    brSearchHint: "Buscar en Latino",
-    brSearchTitle: "Buscar",
-    brSearchedBefore: "Buscado recientemente",
-    brNoResults: "No encontramos nada con esas palabras.",
-    brSearchFailed: "No se pudo buscar. Revisa tu conexi\xF3n e int\xE9ntalo de nuevo.",
-    brFailed: "No se pudo cargar esta secci\xF3n. Revisa tu conexi\xF3n e int\xE9ntalo de nuevo.",
-    brRetry: "Reintentar",
-    brEmpty: "A\xFAn no hay nada aqu\xED.",
-    brBack: "Atr\xE1s",
-    brClose: "Cerrar",
-    brSettings: "Configuraci\xF3n",
-    seriesGenre: "Series de {g}",
-    badge_2160p: "4K",
-    g_accion: "Acci\xF3n",
-    g_comedia: "Comedia",
-    g_drama: "Drama",
-    g_terror: "Terror",
-    g_suspense: "Suspenso",
-    g_animacion: "Animaci\xF3n",
-    g_crimen: "Crimen",
-    g_aventura: "Aventura",
-    g_romance: "Romance",
-    g_familia: "Familia",
-    g_misterio: "Misterio",
-    "g_ciencia-ficcion": "Ciencia ficci\xF3n",
-    g_fantasia: "Fantas\xEDa",
-    "g_sci-fi-fantasy": "Ciencia ficci\xF3n y fantas\xEDa",
-    "g_action-adventure": "Acci\xF3n y aventura",
-    g_documental: "Documental",
-    g_historia: "Historia",
-    g_musica: "M\xFAsica",
-    g_belica: "B\xE9lica",
-    g_western: "Del Oeste",
-    g_kids: "Infantil",
-    "g_war-politics": "Guerra y pol\xEDtica",
-    g_reality: "Reality"
-  },
-  en: {
-    notFound: "I couldn't find this title in Spanish.",
-    seasonMissing: "Latino doesn't have season {season} of {title} in Spanish yet.",
-    episodeMissing: "Latino doesn't have episode {episode} of season {season} of {title} in Spanish yet.",
-    notInSpanish: "not available in Spanish",
-    sourcesDown: "The Spanish sources aren't answering right now.",
-    tmdbDown: "TMDB isn't answering right now. Try again in a while.",
-    noPlayable: "I found the title, but no copy opened. Try again in a while.",
-    needResolver: "To play, open Latino from the menu and install the playback engine it asks for.",
-    copyFailed: "This copy didn't open. Try another server.",
-    lat: "Latin Spanish",
-    esp: "Spain Spanish",
-    sub: "Subtitled",
-    direct: "Direct",
-    keepOneSource: "Keep at least one source on.",
-    healthOk: "ok",
-    healthFail: "fails",
-    healthNone: "no data",
-    healthOff: "off",
-    probeDone: "Tested the sources with a sample title: {ok} answer, {fail} fail.",
-    probeNoTmdb: "I couldn't reach TMDB for the test. Try again in a while.",
-    probeNone: "No sources are on to test.",
-    cacheCleared: "Done: cleared {n} saved items.",
-    cacheClearedOne: "Done: cleared 1 saved item.",
-    prefsReset: "Your preferences are back to the defaults.",
-    rowMovies: "New in Latin Spanish",
-    rowSeries: "Series in Latin Spanish",
-    rowHackstore: "Just added",
-    rowHackstoreSeries: "Series just added",
-    panelTitle: "Latino",
-    tabCopy: "This copy",
-    tabSummary: "Summary",
-    tabAvail: "Availability",
-    tabPrefs: "Preferences",
-    tabFail: "If it fails",
-    tabError: "This tab couldn't load",
-    nowPlaying: "Playing now",
-    copyLang: "Language: {v}",
-    copyQuality: "Quality: {v}",
-    copyServer: "Server: {v}",
-    copySite: "Source: {v}",
-    copyManual: "You switched copies: the automatic pick was {v}",
-    copyChosen: "Chosen from {n} copies",
-    copyChosenOne: "Chosen among 1 copy",
-    copyNoInfo: "I don't know yet which copy is playing.",
-    statResolution: "Picture {v}",
-    statNetwork: "Network {v}",
-    statStalls: "Stalls this session: {v}",
-    netWifi: "Wi-Fi",
-    netEthernet: "wired",
-    netCellular: "mobile data",
-    netOther: "other network",
-    availNoTmdb: "This title has no page to check",
-    availPartial: "Partial answer: some sources did not reply",
-    availSeasons: "Seasons without a Spanish version: {v}",
-    availNone: "No source answered with copies of this title",
-    prefPreferred: "Preferred language",
-    prefMaxQuality: "Maximum quality",
-    langLat: "Latin Spanish",
-    langEsp: "Castilian",
-    langSub: "Subtitled",
-    qAuto: "Automatic",
-    qUpTo: "Up to {v}",
-    qUpTo480: "Up to 480p (saves data)",
-    prefAvoid: "Avoid {v}",
-    prefAvoidHint: "Moves to the end of the list, never removed",
-    prefReset: "Reset preferences",
-    prefResetConfirm: "Go back to your usual settings?",
-    prefApplies: "Applies when the next copy opens",
-    prefSaved: "Done: applies on the next copy",
-    nextEp: "Next: S{s} \xB7 E{e}{tail}",
-    nextSeason: "Next: season {s}, E{e}{tail}",
-    nextEnd: "End of season {s}",
-    nextSpanish: "in Spanish on {v}",
-    nextSubOnly: "subtitled only",
-    nextNone: "not found in Spanish",
-    nextChecking: "checking\u2026",
-    prefNow: "Now: {v}",
-    prefFirst: "{v} first",
-    prefUpTo: "up to {v}",
-    prefAutoQ: "automatic quality",
-    prefAvoidList: "avoid: {v}",
-    failTips: "If a copy won't open: try another from the Server menu, check your Wi-Fi or try again later.",
-    availNoEpisode: "no copy of this episode",
-    availNoTitle: "no copy of this film",
-    availSeasonGone: "This season has no Spanish version",
-    prefWins: "What you change here beats Settings until you use Reset (below)",
-    failAllGood: "All good: no copy has failed in this session",
-    failTimeout: "The server took too long to answer",
-    failNetwork: "There was no connection to the server",
-    failNotFound: "The server no longer has this copy",
-    failUnavailable: "The server isn't available right now",
-    failGeneric: "The copy didn't open",
-    failTried: "Copies tried: {v}",
-    failHowTo: "Open the player's Server menu to pick another copy",
-    failReport: "Report this copy",
-    failReportConfirm: "A technical notice with no personal data will be sent",
-    failReported: "Done: the notice is sent if you have reports turned on",
-    failAlready: "I already reported this copy in the last 12 hours",
-    failReportOff: "Reporting isn't turned on in Settings",
-    stallsHint: 'Playback has stalled {n} times: see the "If it fails" tab',
-    sumRating: "Rating {v}",
-    sumCast: "Cast: {v}",
-    tabHome: "Home",
-    tabMovies: "Movies",
-    tabSeries: "Series",
-    brWatch: "Watch",
-    dEpisodeN: "Episode {n}",
-    dSeasonN: "Season {n}",
-    dSeasonsN: "{n} seasons",
-    dSeriesGo: "Watch episodes",
-    dMore: "More options",
-    dCreators: "Created by: {v}",
-    dDirector: "Directed by: {v}",
-    dCast: "Cast",
-    dEpisodes: "Episodes",
-    dSimilar: "More like this",
-    dSeeInKino: "Open in Kino",
-    brMore: "See more",
-    brInfo: "More info",
-    brRecent: "Continue watching",
-    brSearch: "Search",
-    brSearchHint: "Search Latino",
-    brSearchTitle: "Search",
-    brSearchedBefore: "Recently searched",
-    brNoResults: "Nothing matched those words.",
-    brSearchFailed: "The search failed. Check your connection and try again.",
-    brFailed: "This section could not be loaded. Check your connection and try again.",
-    brRetry: "Retry",
-    brEmpty: "Nothing here yet.",
-    brBack: "Back",
-    brClose: "Close",
-    brSettings: "Settings",
-    seriesGenre: "{g} series",
-    badge_2160p: "4K",
-    g_accion: "Action",
-    g_comedia: "Comedy",
-    g_drama: "Drama",
-    g_terror: "Horror",
-    g_suspense: "Thriller",
-    g_animacion: "Animation",
-    g_crimen: "Crime",
-    g_aventura: "Adventure",
-    g_romance: "Romance",
-    g_familia: "Family",
-    g_misterio: "Mystery",
-    "g_ciencia-ficcion": "Science fiction",
-    g_fantasia: "Fantasy",
-    "g_sci-fi-fantasy": "Sci-fi and fantasy",
-    "g_action-adventure": "Action and adventure",
-    g_documental: "Documentary",
-    g_historia: "History",
-    g_musica: "Music",
-    g_belica: "War",
-    g_western: "Western",
-    g_kids: "Kids",
-    "g_war-politics": "War and politics",
-    g_reality: "Reality"
-  }
+  watch: ["Ver", "Watch"],
+  info: ["M\xE1s informaci\xF3n", "More info"],
+  recent: ["Continuar viendo", "Continue watching"],
+  search: ["Buscar", "Search"],
+  searchHint: ["Buscar en {name}", "Search {name}"],
+  failed: ["No se pudo cargar esta secci\xF3n. Revisa tu conexi\xF3n e int\xE9ntalo de nuevo.", "This section could not be loaded. Check your connection and try again."],
+  retry: ["Reintentar", "Retry"],
+  empty: ["A\xFAn no hay nada aqu\xED.", "Nothing here yet."],
+  back: ["Atr\xE1s", "Back"],
+  close: ["Cerrar", "Close"],
+  settings: ["Ajustes", "Settings"],
+  supportTv: ["Si te gusta mi trabajo, escan\xE9alo y ap\xF3yame", "If you like my work, scan it and support me"],
+  support: ["Si te gusta mi trabajo, ap\xF3yame", "If you like my work, support me"],
+  gateTitle: ["Necesitas el motor de reproducci\xF3n", "You need the playback engine"],
+  gateText: [
+    "{name} reproduce a trav\xE9s de Kino Resolver (gratis). Inst\xE1lalo una vez y sirve para este y para otros plugins de sitios.",
+    "{name} plays through Kino Resolver (free). Install it once and it works here and in other site plugins."
+  ],
+  gateInstall: ["Instalar Kino Resolver", "Install Kino Resolver"]
 };
-function langOf(kino2 = globalThis.kino) {
-  return String(kino2 && kino2.lang || "").toLowerCase().startsWith("en") ? "en" : "es";
+var fill = (s, vars) => s.replace(/\{(\w+)\}/g, (m, k) => vars && vars[k] != null ? String(vars[k]) : m);
+function twin(key, field = "text", vars) {
+  const [es, en] = WORDS[key];
+  const pick = (i) => vars && Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, Array.isArray(v) ? v[i] : v]));
+  return { [field]: fill(es, pick(0)), [field + "En"]: fill(en, pick(1)) };
 }
-function t(key, kino2 = globalThis.kino) {
-  const words = WORDS[langOf(kino2)];
-  return words[key] ?? WORDS.es[key] ?? key;
-}
-function tf(key, vars, kino2 = globalThis.kino) {
-  return t(key, kino2).replace(/\{(\w+)\}/g, (m, k) => vars && vars[k] != null ? String(vars[k]) : m);
-}
-var both = (key, vars) => {
-  const one = (lang) => tf(key, vars && Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, typeof v === "function" ? v(lang) : v])), { lang });
-  return { es: one("es"), en: one("en") };
-};
-var KEYS = { es: Object.keys(WORDS.es), en: Object.keys(WORDS.en) };
+var STRING_KEYS = Object.keys(WORDS);
 
-// src/browse/detail.js
-var HTTPS2 = /^https:\/\//;
-var MAX_EPISODES = 80;
-var MAX_CAST = 12;
-var LEAD_MAX = 140;
-var TMDB_IMG = "https://image.tmdb.org/t/p/w342";
-var twin = (key, field = "text", vars) => {
-  const w = both(key, vars);
-  return { [field]: w.es, [field + "En"]: w.en };
-};
-var same = (text2) => ({ text: text2, textEn: text2 });
-var num = (v) => {
-  const n = parseInt(v, 10);
-  return Number.isFinite(n) ? n : 0;
-};
-var https = (v) => typeof v === "string" && HTTPS2.test(v) && v.length <= 2048 ? v : void 0;
-function titleRefOf(ref) {
-  const m = /^([ms]):(\d{1,10})$/.exec(String(ref || ""));
-  return m ? { kind: m[1] === "m" ? "movie" : "series", id: Number(m[2]) } : null;
-}
-var opensPage = (card) => !!card && (card.kind === "movie" || card.kind === "series") && typeof card.ref === "string" && card.ref.length < 600 && typeof card.id === "string";
-var cardNode = (card, size, scope) => ({
-  type: "titleCard",
-  key: `${scope}-${card.id}`,
-  size,
-  item: card,
-  ...opensPage(card) ? { onTap: { event: "openTitle", arg: JSON.stringify(openArgs(card)) } } : {}
-});
-var cardRow = (items, key, size) => ({ type: "SingleChildScrollView", key: key + "-s", direction: "horizontal", children: [{ type: "Row", key: key + "-r", gap: 12, children: items.map((c) => cardNode(c, size, key)) }] });
-var cardGrid = (items, key) => ({ type: "GridView", key, columns: { compact: 3, expanded: 6 }, children: items.map((c) => cardNode(c, "medium", key)) });
-function pushOf(arg) {
-  let a = null;
-  try {
-    a = JSON.parse(String(arg));
-  } catch (_) {
-    a = null;
-  }
-  if (!a || typeof a.open !== "string" || typeof a.i !== "string" || a.k !== "movie" && a.k !== "series") return null;
-  return { push: "detail", params: { open: a.open, i: a.i, t: typeof a.t === "string" ? a.t.slice(0, 100) : "", k: a.k, d: Number(a.d) || 0, y: Number(a.y) || 0 } };
-}
-function backdropsOf(images, first) {
-  const base = "https://image.tmdb.org/t/p/w780";
-  const list = (images && images.backdrops || []).filter((b) => b && typeof b.file_path === "string" && b.file_path.startsWith("/") && b.width >= 1e3).sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0)).map((b) => base + b.file_path);
-  const out = [];
-  for (const u of [first, ...list]) if (u && !out.some((x) => x.slice(x.lastIndexOf("/")) === u.slice(u.lastIndexOf("/")))) out.push(u);
-  return out.slice(0, 6);
-}
-function openArgs(card) {
-  const r = titleRefOf(card.ref);
-  const tmdb = r ? r.id : card.ids && Number.isInteger(card.ids.tmdb) ? card.ids.tmdb : 0;
-  const year = card.year ? num(card.year) : 0;
-  return { open: card.ref, i: card.id, t: String(card.title || "").slice(0, 100), k: card.kind, ...tmdb ? { d: tmdb } : {}, ...year ? { y: year } : {} };
-}
-var hoursOf = (min) => {
-  const m = num(min);
-  return m > 0 ? m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}` : `${m} min` : "";
-};
-var MONTHS = {
-  es: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
-  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-};
-var dateText = (iso) => {
-  const [y, m, d] = String(iso).split("-").map(Number);
-  return m >= 1 && m <= 12 ? { es: `${d} ${MONTHS.es[m - 1]} ${y}`, en: `${MONTHS.en[m - 1]} ${d}, ${y}` } : { es: iso, en: iso };
-};
-async function loadDetail(args) {
-  const kind = args.k === "movie" ? "movie" : "series";
-  const tmdbId = Number(args.d) || 0;
-  const year = Number(args.y) || 0;
-  let meta = null;
-  if (typeof kino.meta === "function") {
-    if (tmdbId) meta = await kino.meta({ type: kind, ids: { tmdb: tmdbId } }).catch(() => null);
-    if (!meta && kino.meta.byTitle === true && args.t) meta = await kino.meta({ type: kind, title: String(args.t), ...year >= 1870 && year <= 2100 ? { year } : {} }).catch(() => null);
-  }
-  if (!meta) throw Object.assign(new Error("no meta"), { code: "not_found" });
-  const ids = meta.ids || (tmdbId ? { tmdb: tmdbId } : {});
-  const d = {
-    kind,
-    title: String(meta.title || args.t || "").slice(0, 200),
-    overview: String(meta.overview || ""),
-    year: num(meta.year),
-    backdrop: https(meta.backdrop) || https(meta.poster),
-    logo: https(meta.logo),
-    genres: (meta.genres || []).filter((g) => typeof g === "string").slice(0, 4),
-    runtime: num(meta.runtimeMinutes),
-    tagline: String(meta.tagline || ""),
-    certification: String(meta.certification || ""),
-    directors: (meta.directors || []).slice(0, 3),
-    ratings: (meta.ratings || []).slice(0, 3),
-    cast: (meta.cast || []).slice(0, MAX_CAST),
-    ids,
-    episodes: [],
-    similar: []
-  };
-  if (kind === "series") {
-    d.episodes = (Array.isArray(meta.episodes) ? meta.episodes : []).filter((e) => num(e.season) >= 1 && num(e.number) >= 1).slice(0, 600).map((e) => ({ s: num(e.season), n: num(e.number), title: String(e.title || "").slice(0, 120), overview: String(e.overview || "").slice(0, 110), still: https(e.still), air: /^\d{4}-\d{2}-\d{2}/.test(String(e.airDate || "")) ? String(e.airDate).slice(0, 10) : "" }));
-  }
-  if (ids.tmdb && typeof kino.tmdb === "function") {
-    try {
-      const credits = await kino.tmdb(`/${kind === "movie" ? "movie" : "tv"}/${ids.tmdb}/credits`, { language: "es-MX" });
-      const cast = (credits && credits.cast || []).filter((c) => c && c.name).slice(0, MAX_CAST).map((c) => ({ name: String(c.name), character: String(c.character || ""), photo: typeof c.profile_path === "string" && c.profile_path.startsWith("/") ? "https://image.tmdb.org/t/p/w185" + c.profile_path : void 0 }));
-      if (cast.length) d.cast = cast;
-    } catch (_) {
-    }
-    try {
-      d.images = backdropsOf(await kino.tmdb(`/${kind === "movie" ? "movie" : "tv"}/${ids.tmdb}/images`, { include_image_language: "null,es,en" }), d.backdrop);
-    } catch (_) {
-    }
-    try {
-      const data = await kino.tmdb(`/${kind === "movie" ? "movie" : "tv"}/${ids.tmdb}/recommendations`, { language: "es-MX" });
-      d.similar = (data && data.results || []).filter((x) => x && x.id && (x.title || x.name) && x.poster_path).slice(0, 12).map((x) => ({
-        id: (kind === "movie" ? "m-" : "s-") + x.id,
-        ref: (kind === "movie" ? "m:" : "s:") + x.id,
-        kind,
-        title: String(x.title || x.name).slice(0, 200),
-        poster: TMDB_IMG + x.poster_path,
-        ids: { tmdb: x.id }
-      }));
-    } catch (_) {
-    }
-  }
-  return d;
-}
-var heroSkeleton = () => ({ type: "Skeleton", key: "heroSkeleton", shape: "block", height: { compact: 200, expanded: 320 } });
-var railSkeleton = () => ({
-  type: "Column",
-  key: "dskel1",
-  gap: 8,
-  children: [
-    { type: "Skeleton", shape: "line", width: 120 },
-    { type: "Row", gap: 12, children: [1, 2, 3].map((i) => ({ type: "Skeleton", shape: "card", key: `dsk${i}`, flex: 1 })) }
-  ]
-});
-var sectionTitle = (key) => ({ type: "Text", ...twin(key), style: "h4" });
-var episodeGo = (d, r) => ({ go: { title: { ref: r.ref, kind: "series", id: r.id, title: d.title } } });
-function episodeRow(d, r, ep) {
-  const facts = ep.air ? dateText(ep.air) : null;
-  const heading = ep.title ? { text: `${ep.n}. ${ep.title}`, textEn: `${ep.n}. ${ep.title}` } : twin("dEpisodeN", "text", { n: ep.n });
+// src/std/view.js
+var SUPPORT_URL = "https://ko-fi.com/xuperplugins";
+var RESOLVER_REPO = "xuper-plugin/kino-plugin-kino-resolver";
+var POLL_MS = 1500;
+function brand(cfg) {
   return {
     type: "Row",
-    key: `ep-${ep.s}-${ep.n}`,
+    key: "brand",
     gap: 12,
     crossAxisAlignment: "center",
-    onTap: episodeGo(d, r),
-    canRequestFocus: true,
     children: [
-      { type: "Image", key: `epi-${ep.s}-${ep.n}`, width: 120, aspect: "16:9", fit: "cover", radius: "medium", ...ep.still ? { url: ep.still } : {}, fallback: { type: "Skeleton", shape: "block", height: 64 } },
-      { type: "Column", flex: 1, gap: 4, children: [
-        { type: "Text", bold: true, maxLines: 2, ...heading },
-        ...facts ? [{ type: "Text", style: "caption", color: "muted", text: facts.es, textEn: facts.en }] : [],
-        ...ep.overview ? [{ type: "Text", style: "caption", color: "muted", maxLines: 2, ...same(ep.overview) }] : []
-      ] }
+      ...cfg.logo ? [{ type: "Image", key: "logo", url: cfg.logo, aspect: cfg.logoAspect || "1:1", fit: "contain", h: 32, alt: cfg.name, altEn: cfg.nameEn || cfg.name }] : [],
+      { type: "Text", key: "name", style: "h4", text: cfg.name, textEn: cfg.nameEn || cfg.name }
     ]
   };
 }
-function castItem(c) {
-  const name = String(c.name || "").slice(0, 60);
-  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-  return {
-    type: "Column",
-    key: "cast-" + name.replace(/[^A-Za-z0-9]/g, "").slice(0, 24) + "-" + String(c.character || "").length,
-    width: 96,
-    gap: 4,
-    crossAxisAlignment: "center",
-    canRequestFocus: true,
-    children: [
-      { type: "CircleAvatar", radius: 32, ...https(c.photo) ? { image: https(c.photo) } : {}, text: initials, textEn: initials },
-      { type: "Text", ...same(name), style: "caption", maxLines: 2 },
-      ...c.character ? [{ type: "Text", ...same(String(c.character).slice(0, 40)), style: "caption", color: "muted", maxLines: 1 }] : []
-    ]
-  };
+var tabBar = (tabs, active) => ({
+  type: "TabBar",
+  key: "tabs",
+  divider: false,
+  value: active,
+  onChanged: "tab",
+  tabs: tabs.map((t2) => ({ value: t2.id, label: t2.label, labelEn: t2.labelEn || t2.label }))
+});
+var iconButton = (key, icon, word, onPressed) => ({ type: "IconButton", key, icon, ...twin(word, "labelText"), ...twin(word, "tooltip"), onPressed });
+function supportNode(device) {
+  if (device === "tv") return { type: "QrImage", key: "donate", value: SUPPORT_URL, size: "large", ...twin("supportTv", "labelText") };
+  return { type: "ElevatedButton", key: "donate", icon: "heart", ...twin("support", "labelText"), onPressed: { go: { url: { href: SUPPORT_URL } } } };
 }
-function detailView({ r, entry, season, logo: logo2, back }) {
-  const d = entry && entry.d;
-  const appBar = { type: "AppBar", mergeWithKinoBar: true, dense: true, divider: false, leading: back, title: logo2 };
-  const body = [];
-  let hero2 = null;
-  if (!entry) {
-    hero2 = heroSkeleton();
-    body.push(railSkeleton());
-  } else if (!d) {
-    body.push({ type: "MaterialBanner", key: "detailFailed", role: "error", ...twin("brFailed"), action: { ...twin("brRetry", "label"), onTap: "dretry" } });
-    body.push({ type: "ElevatedButton", key: "dkino", icon: "play", ...twin("dSeeInKino", "labelText"), onPressed: { go: { title: { ref: r.ref, kind: r.kind, id: r.id, title: r.title } } } });
-  } else {
-    const series = d.kind === "series";
-    const seasons = [...new Set(d.episodes.map((e) => e.s))].sort((a, b) => a - b);
-    const shown = seasons.includes(season) ? season : seasons[0];
-    const toKino = { go: { title: { ref: r.ref, kind: d.kind, id: r.id, title: r.title || d.title } } };
-    const buttons = series ? [{ type: "ElevatedButton", key: "dplay", ...twin("dSeriesGo", "labelText"), icon: "play", autofocus: true, onPressed: toKino }] : [
-      { type: "ElevatedButton", key: "dplay", ...twin("brWatch", "labelText"), icon: "play", autofocus: true, onPressed: { go: { play: { ref: r.ref, kind: "movie", id: r.id, title: d.title } } } },
-      { type: "TextButton", key: "dmore", ...twin("dMore", "labelText"), onPressed: toKino }
-    ];
-    const lead = d.tagline || (d.overview.length <= LEAD_MAX ? d.overview : d.overview.slice(0, LEAD_MAX - 1).trimEnd() + "\u2026");
-    const images = (d.images && d.images.length ? d.images : [d.backdrop || ""]).slice(0, 6);
-    const slide = (image, i) => ({
-      type: "heroCard",
-      key: i ? "dhero-" + i : "dhero",
-      h: { compact: 240, expanded: 320 },
-      title: d.title,
-      titleEn: d.title,
-      ...lead ? same(lead) : {},
-      ...image ? { image } : {},
-      ...d.logo ? { logo: d.logo } : {},
-      buttons: i ? buttons.map((b) => ({ ...b, key: b.key + "-" + i, autofocus: false })) : buttons
-    });
-    hero2 = images.length > 1 ? { type: "PageView", key: "hero" + images.length, autoPlayMs: 6e3, children: images.map(slide) } : slide(images[0], 0);
-    const rating = d.ratings.find((x) => x.source === "imdb") || d.ratings.find((x) => x.source === "tmdb");
-    const facts = [];
-    if (rating) facts.push("\u2605 " + rating.value);
-    if (d.year) facts.push(String(d.year));
-    if (d.certification) facts.push(d.certification);
-    if (d.runtime) facts.push(hoursOf(d.runtime));
-    const es = facts.concat(series && seasons.length ? [both("dSeasonsN", { n: seasons.length }).es] : []);
-    const en = facts.concat(series && seasons.length ? [both("dSeasonsN", { n: seasons.length }).en] : []);
-    if (es.length) body.push({ type: "Text", key: "dfacts", style: "h4", text: es.join("  \xB7  "), textEn: en.join("  \xB7  ") });
-    if (d.genres.length) body.push({ type: "Row", key: "dgenres", gap: 8, children: d.genres.map((g, i) => ({ type: "Badge", key: "dg-" + i, ...same(g) })) });
-    if (d.overview) body.push({ type: "Text", key: "dsynopsis", canRequestFocus: true, ...same(d.overview) });
-    if (d.directors.length) body.push({ type: "Text", ...twin(series ? "dCreators" : "dDirector", "text", { v: d.directors.join(", ") }), color: "muted" });
-    if (d.cast.length) {
-      body.push(sectionTitle("dCast"));
-      body.push({ type: "SingleChildScrollView", key: "dcast", direction: "horizontal", children: [{ type: "Row", gap: 12, children: d.cast.map(castItem) }] });
-    }
-    if (series && seasons.length) {
-      body.push(seasons.length > 1 ? { type: "DropdownButton", key: "dseason", value: String(shown), onChanged: "season", options: seasons.map((s) => {
-        const w = both("dSeasonN", { n: s });
-        return { value: String(s), label: w.es, labelEn: w.en };
-      }) } : sectionTitle("dEpisodes"));
-      for (const ep of d.episodes.filter((e) => e.s === shown).slice(0, MAX_EPISODES)) body.push(episodeRow(d, r, ep));
-    }
-    if (d.similar.length) {
-      body.push(sectionTitle("dSimilar"));
-      body.push(cardRow(d.similar, "dsimilar", "small"));
-    }
-  }
-  return {
-    type: "Scaffold",
-    appBar,
-    body: { type: "SingleChildScrollView", key: "detail-page", children: [...hero2 ? [hero2] : [], { type: "Column", padding: { compact: 12, expanded: 24 }, gap: 16, children: body }] },
-    ...!entry ? { every: { ms: 1e3, event: "dtick" } } : {}
-  };
-}
-
-// src/browse/view.js
-var TAB_KEYS = { inicio: "tabHome", peliculas: "tabMovies", series: "tabSeries" };
-var POLL_MS = 1500;
-var SEARCH_CAP = 60;
-var twin2 = (key, field = "text", vars) => {
-  const w = both(key, vars);
-  return { [field]: w.es, [field + "En"]: w.en };
-};
-var logo = () => ({ type: "Text", key: "logo", text: "SeriesKao", textEn: "SeriesKao", style: "h4" });
-var tabBar = (active) => ({ type: "TabBar", key: "tabs", divider: false, value: active, onChanged: "tab", tabs: TAB_IDS.map((id) => ({ value: id, ...twin2(TAB_KEYS[id], "label") })) });
-var railSkeleton2 = (n) => ({
+var bar = ({ leading, title, actions = [] }) => ({ type: "AppBar", mergeWithKinoBar: true, dense: true, divider: false, leading, title, actions });
+var railSkeleton = (n) => ({
   type: "Column",
   key: "skel" + n,
   gap: 8,
@@ -946,16 +420,8 @@ var railSkeleton2 = (n) => ({
     { type: "Row", gap: 12, sizes: ["medium", "expanded"], children: [1, 2, 3, 4, 5, 6].map((i) => ({ type: "Skeleton", shape: "card", key: `sk${n}w${i}`, flex: 1 })) }
   ]
 });
-var gridSkeleton = () => ({
-  type: "Column",
-  key: "gridSkeleton",
-  gap: 12,
-  children: [
-    ...[1, 2].map((r) => ({ type: "Row", gap: 12, sizes: ["compact"], key: `gc${r}`, children: [1, 2, 3].map((i) => ({ type: "Skeleton", shape: "card", key: `gc${r}-${i}`, flex: 1 })) })),
-    ...[1, 2].map((r) => ({ type: "Row", gap: 12, sizes: ["medium", "expanded"], key: `gw${r}`, children: [1, 2, 3, 4, 5, 6].map((i) => ({ type: "Skeleton", shape: "card", key: `gw${r}-${i}`, flex: 1 })) }))
-  ]
-});
-var heroSkeleton2 = () => ({ type: "Skeleton", key: "heroSkeleton", shape: "block", height: { compact: 200, expanded: 320 } });
+var heroSkeleton = () => ({ type: "Skeleton", key: "heroSkeleton", shape: "block", height: { compact: 200, expanded: 320 } });
+var titleOf = (s) => ({ ref: s.ref, kind: s.kind, id: s.id, title: s.title });
 var slideNode = (s) => ({
   type: "heroCard",
   key: "slide-" + s.id,
@@ -965,19 +431,8 @@ var slideNode = (s) => ({
   text: s.text,
   image: s.image,
   buttons: [
-    {
-      type: "ElevatedButton",
-      key: "watch-" + s.id,
-      ...twin2("brWatch", "labelText"),
-      icon: "play",
-      onPressed: { go: { play: { ref: s.ref, kind: s.kind, id: s.id, title: s.title } } }
-    },
-    {
-      type: "TextButton",
-      key: "info-" + s.id,
-      ...twin2("brInfo", "labelText"),
-      onPressed: s.kind === "movie" || s.kind === "series" ? { go: { screen: { args: openArgs(s) } } } : { go: { title: { ref: s.ref, kind: s.kind, id: s.id, title: s.title } } }
-    }
+    { type: "ElevatedButton", key: "watch-" + s.id, ...twin("watch", "labelText"), icon: "play", onPressed: { go: { play: titleOf(s) } } },
+    { type: "TextButton", key: "info-" + s.id, ...twin("info", "labelText"), onPressed: { go: { title: titleOf(s) } } }
   ]
 });
 var hero = (slides) => slides.length === 1 ? slideNode(slides[0]) : {
@@ -986,130 +441,90 @@ var hero = (slides) => slides.length === 1 ? slideNode(slides[0]) : {
   autoPlayMs: 6e3,
   children: slides.map(slideNode)
 };
-var rail = (r, key, titleOverride) => ({
-  type: "Column",
+var rail = (r, key, words) => ({
+  type: "titleRail",
   key,
-  gap: 8,
-  children: [
-    { type: "Row", key: key + "-h", crossAxisAlignment: "center", children: [
-      { type: "Text", style: "h4", flex: 1, text: titleOverride ? titleOverride.title : r.title, textEn: titleOverride ? titleOverride.titleEn : r.title },
-      ...r.ref ? [{ type: "TextButton", key: key + "-more", ...twin2("brMore", "labelText"), onPressed: { go: { browse: { ref: r.ref, title: r.title } } } }] : []
-    ] },
-    cardRow(r.items, key, "medium")
-  ]
+  ...words || { title: r.title, titleEn: r.titleEn || r.title },
+  ...r.ref ? { ref: r.ref } : {},
+  items: r.items
 });
-function browseView({ tab, data, recent, pending, failed, device = "phone" }) {
+function browseView(cfg, { tab, data, recent, pending, failed, searching, device = "phone" }) {
   const tv = device === "tv";
-  const gear = { type: "IconButton", key: "settingsButton", icon: "settings", ...twin2("brSettings", "labelText"), ...twin2("brSettings", "tooltip"), onPressed: { event: "go", arg: "settings" } };
-  const active = TAB_IDS.includes(tab) ? tab : TAB_IDS[0];
+  const tabs = cfg.tabs;
+  const active = tabs.some((t2) => t2.id === tab) ? tab : tabs[0].id;
+  const withTabs = tabs.length > 1;
   const body = [];
   if (data) {
     if (data.slides.length > 0) body.push(hero(data.slides));
-    if (recent.length > 0) body.push(rail({ items: recent }, "recent", twin2("brRecent", "title")));
+    if (recent.length > 0) body.push(rail({ items: recent }, "recent", twin("recent", "title")));
     for (const r of data.rails) body.push(rail(r, "rail-" + String(r.id).replace(/[^A-Za-z0-9_-]/g, "_")));
-    if (data.rails.length === 0) body.push({ type: "Text", ...twin2("brEmpty", "text"), color: "muted" });
+    if (data.rails.length === 0) body.push({ type: "Text", key: "empty", ...twin("empty"), color: "muted" });
   } else if (failed) {
-    body.push({
-      type: "MaterialBanner",
-      key: "loadFailed",
-      role: "error",
-      ...twin2("brFailed"),
-      action: { ...twin2("brRetry", "label"), onTap: "retry" }
-    });
+    body.push({ type: "MaterialBanner", key: "loadFailed", role: "error", ...twin("failed"), action: { ...twin("retry", "label"), onTap: "retry" } });
   } else {
-    body.push(heroSkeleton2(), railSkeleton2(1), railSkeleton2(2), railSkeleton2(3));
+    body.push(heroSkeleton(), railSkeleton(1), railSkeleton(2), railSkeleton(3));
   }
   const isBanner = (n) => !!n && (n.type === "heroCard" || n.key === "heroSkeleton" || n.type === "PageView" && String(n.key).startsWith("hero"));
   const banner = body.length > 0 && isBanner(body[0]) ? body.shift() : null;
+  const appBar = searching ? bar({
+    leading: iconButton("closeSearch", "arrow_back", "close", "closeSearch"),
+    title: {
+      type: "TextField",
+      key: "q",
+      kind: "search",
+      autofocus: true,
+      maxLength: 200,
+      ...twin("searchHint", "hintText", { name: [cfg.name, cfg.nameEn || cfg.name] }),
+      onSubmitted: "search",
+      trailingIcon: "search",
+      ...twin("search", "trailingLabel"),
+      onTrailingTap: "search"
+    }
+  }) : bar({
+    leading: iconButton("close", "close", "close", { go: { close: true } }),
+    // On a TV the tabs sit in the bar beside the brand (one row, one D-pad strip); elsewhere they are pinned under it.
+    title: tv && withTabs ? { type: "Row", key: "titleRow", gap: 24, crossAxisAlignment: "center", children: [brand(cfg), tabBar(tabs, active)] } : brand(cfg),
+    actions: [iconButton("searchButton", "search", "search", "openSearch"), iconButton("settingsButton", "settings", "settings", "openSettings")]
+  });
   return {
     type: "Scaffold",
-    appBar: {
-      type: "AppBar",
-      // One bar instead of two (Kino 0.9.81+; an older Kino draws its own bar above and this one under it): the close button where
-      // Kino's was and the plugin's logo where its name was (its name when the logo cannot be drawn), with no line under it.
-      mergeWithKinoBar: true,
-      dense: true,
-      divider: false,
-      leading: { type: "IconButton", key: "close", icon: "close", ...twin2("brClose", "labelText"), ...twin2("brClose", "tooltip"), onPressed: { go: { close: true } } },
-      // On a TV the search is a button of the bar (a floating one is hard to reach with a remote); elsewhere it floats.
-      actions: tv ? [{ type: "IconButton", key: "searchButton", icon: "search", ...twin2("brSearch", "labelText"), ...twin2("brSearch", "tooltip"), onPressed: "openSearch" }, gear] : [gear],
-      title: tv ? { type: "Row", key: "titleRow", gap: 24, crossAxisAlignment: "center", children: [logo(), tabBar(active)] } : logo()
-    },
-    ...tv ? {} : { floatingActionButton: { type: "FloatingActionButton", key: "searchFab", icon: "search", ...twin2("brSearch", "tooltip"), onPressed: "openSearch" } },
-    // The tabs stay pinned under the bar; only the rows scroll.
+    appBar,
     body: { type: "Column", key: "page", children: [
-      // The tabs line up with the bar's buttons and the cards below (a wide window and the TV pad their content by 24).
-      ...tv ? [] : [{ type: "Column", key: "tabsRow", padding: { compact: 0, expanded: 24 }, children: [tabBar(active)] }],
+      ...withTabs && !tv ? [{ type: "Column", key: "tabsRow", padding: { compact: 0, expanded: 24 }, children: [tabBar(tabs, active)] }] : [],
       { type: "SingleChildScrollView", key: "browse-" + active, flex: 1, children: [...banner ? [banner] : [], { type: "Column", padding: { compact: 12, expanded: 24 }, gap: 16, children: body }] }
     ] },
     ...pending ? { every: { ms: POLL_MS, event: "tick" } } : {}
   };
 }
-function settingsView() {
+function settingsView(cfg, device = "phone") {
   return {
     type: "Scaffold",
-    appBar: {
-      type: "AppBar",
-      mergeWithKinoBar: true,
-      dense: true,
-      divider: false,
-      leading: { type: "IconButton", key: "back", icon: "arrow_back", ...twin2("brBack", "labelText"), ...twin2("brBack", "tooltip"), onPressed: "back" },
-      title: logo()
-    },
-    body: { type: "SingleChildScrollView", key: "settings-page", children: [{ type: "Column", padding: { compact: 12, expanded: 24 }, gap: 16, children: [{ type: "settings", key: "form" }] }] }
+    appBar: bar({ leading: iconButton("back", "arrow_back", "back", "back"), title: brand(cfg) }),
+    body: { type: "SingleChildScrollView", key: "settings-page", children: [{ type: "Column", padding: { compact: 12, expanded: 24 }, gap: 16, children: [
+      ...cfg.hasSettings ? [{ type: "settings", key: "form" }, { type: "Divider", key: "supportDivider" }] : [],
+      supportNode(device)
+    ] }] }
   };
 }
-function searchView({ query, status, items, history = [], device = "phone" }) {
-  const tv = device === "tv";
-  const searchForm = () => ({
-    type: "Form",
-    key: "searchForm",
-    onSubmitted: "search",
-    gap: 8,
-    children: tv ? [{ type: "Row", key: "searchRow", gap: 16, crossAxisAlignment: "center", children: [
-      { type: "TextField", key: "q", kind: "text", value: query, ...twin2("brSearchHint", "labelText"), maxLength: 100, autofocus: true, weight: 1 },
-      { type: "ElevatedButton", key: "searchGo", ...twin2("brSearch", "labelText"), icon: "search", submit: true }
-    ] }] : [
-      { type: "TextField", key: "q", kind: "text", value: query, ...twin2("brSearchHint", "labelText"), maxLength: 100, autofocus: true },
-      { type: "ElevatedButton", key: "searchGo", ...twin2("brSearch", "labelText"), icon: "search", submit: true }
-    ]
-  });
-  const body = tv ? [] : [searchForm()];
-  if (status === "fail") {
-    body.push({ type: "MaterialBanner", key: "searchFailed", role: "error", ...twin2("brSearchFailed"), action: { ...twin2("brRetry", "label"), onTap: "sretry" } });
-  } else if (status === "done" && items) {
-    if (items.length === 0) body.push({ type: "Text", ...twin2("brNoResults", "text"), color: "muted" });
-    else body.push(cardGrid(items.slice(0, SEARCH_CAP), "results"));
-  } else if (status !== "idle") {
-    body.push(gridSkeleton());
-  } else if (history.length > 0) {
-    body.push({ type: "Text", ...twin2("brSearchedBefore", "text"), style: "h4" });
-    body.push(cardGrid(history.slice(0, SEARCH_CAP), "history"));
-  }
+function gateView(cfg, device = "phone") {
+  const name = [cfg.name, cfg.nameEn || cfg.name];
   return {
     type: "Scaffold",
-    appBar: {
-      type: "AppBar",
-      mergeWithKinoBar: true,
-      dense: true,
-      divider: false,
-      leading: { type: "IconButton", key: "back", icon: "arrow_back", ...twin2("brBack", "labelText"), ...twin2("brBack", "tooltip"), onPressed: "back" },
-      ...tv ? { title: searchForm() } : twin2("brSearchTitle", "title")
-    },
-    body: { type: "SingleChildScrollView", key: "search-page", children: [{ type: "Column", padding: { compact: 12, expanded: 24 }, gap: 16, children: body }] },
-    ...status === "loading" ? { every: { ms: 1e3, event: "stick" } } : {}
+    appBar: bar({ leading: iconButton("close", "close", "close", { go: { close: true } }), title: brand(cfg) }),
+    body: { type: "Column", key: "gate", mainAxisAlignment: "center", crossAxisAlignment: "center", padding: 24, gap: 16, children: [
+      { type: "Text", key: "gateTitle", style: "h3", ...twin("gateTitle") },
+      { type: "Text", key: "gateText", style: "p", ...twin("gateText", "text", { name }) },
+      { type: "ElevatedButton", key: "installResolver", ...twin("gateInstall", "labelText"), onPressed: { go: { installPlugin: { repo: RESOLVER_REPO } } } },
+      supportNode(device)
+    ] }
   };
-}
-function detailPage({ r, entry, season }) {
-  const back = { type: "IconButton", key: "back", icon: "arrow_back", ...twin2("brBack", "labelText"), ...twin2("brBack", "tooltip"), onPressed: "back" };
-  return detailView({ r, entry, season, logo: logo(), back });
 }
 
-// src/browse/metaCache.js
+// src/std/metaCache.js
 var KEY = "meta1";
 var MAX = 120;
 var CALL_MS = 8e3;
-var HTTPS3 = /^https:\/\//;
+var HTTPS2 = /^https:\/\//;
 function makeMetaCache({ kino: kino2, clock = { now: () => Date.now() } }) {
   const usable = () => {
     try {
@@ -1140,7 +555,7 @@ function makeMetaCache({ kino: kino2, clock = { now: () => Date.now() } }) {
   function known(id) {
     const e = read()[id];
     if (!e) return {};
-    return { ...e.t > 0 ? { tmdb: e.t } : {}, ...e.l && HTTPS3.test(e.l) ? { logo: e.l } : {} };
+    return { ...e.t > 0 ? { tmdb: e.t } : {}, ...e.l && HTTPS2.test(e.l) ? { logo: e.l } : {} };
   }
   function dress(cards) {
     return cards.map((c) => {
@@ -1148,7 +563,7 @@ function makeMetaCache({ kino: kino2, clock = { now: () => Date.now() } }) {
       return k.tmdb && !(c.ids && c.ids.tmdb) ? { ...c, ids: { ...c.ids || {}, tmdb: k.tmdb } } : c;
     });
   }
-  async function fill(cards, budgetMs) {
+  async function fill2(cards, budgetMs) {
     if (!usable()) return 0;
     const b = read();
     const end = clock.now() + budgetMs;
@@ -1169,20 +584,21 @@ function makeMetaCache({ kino: kino2, clock = { now: () => Date.now() } }) {
     if (asked > 0) write();
     return asked;
   }
-  return { known, dress, fill, usable };
+  return { known, dress, fill: fill2, usable };
 }
 
-// src/browse/index.js
+// src/std/index.js
 var TAB_KEY = "browseTab";
 var SNAP_PREFIX = "browse1:";
 var SNAP_TTL_MS = 7 * 24 * 3600 * 1e3;
-var HOME_KEY = "home1";
 var SNAP_MAX = 20 * 1024;
 var RECENT_KEY = "recent1";
 var RECENT_MAX = 12;
-var HIST_KEY = "searchHist1";
-var HIST_MAX = 24;
-function makeBrowse({ kino: kino2, loadTab, searchTitles }) {
+var Q_MAX = 200;
+var DEFAULT_TABS = [{ id: "inicio", label: "Inicio", labelEn: "Home" }];
+function makeStandardScreen({ kino: kino2, name, nameEn, logo = null, logoAspect = "1:1", needsResolver, hasSettings, tabs, loadTab, homeKey = null }) {
+  const cfg = { name, nameEn, logo, logoAspect, hasSettings: !!hasSettings, tabs: Array.isArray(tabs) && tabs.length > 0 ? tabs : DEFAULT_TABS };
+  const TAB_IDS = cfg.tabs.map((t2) => t2.id);
   const meta = makeMetaCache({ kino: kino2 });
   const enrich = (data) => data ? {
     slides: data.slides.map((s) => {
@@ -1194,7 +610,7 @@ function makeBrowse({ kino: kino2, loadTab, searchTitles }) {
   const memo = /* @__PURE__ */ new Map();
   const log = (...a) => {
     try {
-      kino2.log("[latino]", ...a);
+      kino2.log("[std]", ...a);
     } catch (_) {
     }
   };
@@ -1221,8 +637,8 @@ function makeBrowse({ kino: kino2, loadTab, searchTitles }) {
   }
   function writeSnap(tab, data) {
     for (let per = 10; per >= 3; per -= 2) {
-      const slim2 = { slides: data.slides, rails: data.rails.map((r) => ({ ...r, items: r.items.slice(0, per) })) };
-      const text2 = JSON.stringify({ at: Date.now(), data: slim2 });
+      const slim = { slides: data.slides, rails: data.rails.map((r) => ({ ...r, items: r.items.slice(0, per) })) };
+      const text2 = JSON.stringify({ at: Date.now(), data: slim });
       if (text2.length <= SNAP_MAX) {
         set(SNAP_PREFIX + tab, text2, { ttlMs: SNAP_TTL_MS });
         return;
@@ -1230,19 +646,18 @@ function makeBrowse({ kino: kino2, loadTab, searchTitles }) {
     }
   }
   function homeSeed(tab) {
-    if (tab !== "inicio") return null;
+    if (!homeKey || tab !== TAB_IDS[0]) return null;
     try {
-      const o = JSON.parse(get(HOME_KEY) || "null");
+      const o = JSON.parse(get(homeKey) || "null");
       return o && Array.isArray(o.rows) && o.rows.length ? tabOf({ rows: o.rows }) : null;
     } catch (_) {
       return null;
     }
   }
   const stored = () => {
-    const t3 = get(TAB_KEY);
-    return TAB_IDS.includes(t3) ? t3 : null;
+    const t2 = get(TAB_KEY);
+    return TAB_IDS.includes(t2) ? t2 : null;
   };
-  const remember = (tab) => set(TAB_KEY, tab);
   function dataOf(tab) {
     if (memo.has(tab)) return memo.get(tab).data;
     const snap = readSnap(tab) || homeSeed(tab);
@@ -1270,58 +685,28 @@ function makeBrowse({ kino: kino2, loadTab, searchTitles }) {
     } catch (_) {
     }
   }
-  const slim = (c) => ({ id: c.id, ref: c.ref, title: c.title, kind: c.kind, ...c.poster ? { poster: c.poster } : {} });
-  function readHistory() {
-    try {
-      const a = JSON.parse(get(HIST_KEY) || "[]");
-      return Array.isArray(a) ? a.filter((c) => c && typeof c.id === "string" && typeof c.ref === "string" && typeof c.title === "string").slice(0, HIST_MAX) : [];
-    } catch (_) {
-      return [];
-    }
-  }
-  function rememberFound(cards) {
-    try {
-      const fresh = cards.filter((c) => c.adult !== true).slice(0, 12).map(slim);
-      const ids = new Set(fresh.map((c) => c.id));
-      set(HIST_KEY, JSON.stringify([...fresh, ...readHistory().filter((c) => !ids.has(c.id))].slice(0, HIST_MAX)));
-    } catch (_) {
-    }
-  }
-  let found = null;
-  const details2 = /* @__PURE__ */ new Map();
-  const paramsOf = (route) => route && route.params && typeof route.params === "object" ? route.params : {};
   const tabFromArgs = (route) => {
     const a = route && route.args && typeof route.args === "object" ? route.args : {};
     return TAB_IDS.includes(a.tab) ? a.tab : null;
   };
   function needed(tab, device) {
-    const order = [tab, ...TAB_IDS.filter((t3) => t3 !== tab)];
-    return order.filter((t3, i) => (i === 0 || device !== "tv") && !(memo.get(t3) && memo.get(t3).whole));
+    const order = [tab, ...TAB_IDS.filter((t2) => t2 !== tab)];
+    return order.filter((t2, i) => (i === 0 || device !== "tv") && !(memo.get(t2) && memo.get(t2).whole));
   }
-  function view(ctx) {
-    const st = ctx.state && typeof ctx.state === "object" ? ctx.state : {};
-    if (ctx.route && ctx.route.name === "settings") return settingsView();
-    if (ctx.route && ctx.route.name === "detail") {
-      const p = paramsOf(ctx.route);
-      if (typeof p.open === "string" && typeof p.i === "string") {
-        return detailPage({ r: { ref: p.open, id: p.i, kind: p.k === "movie" ? "movie" : "series", title: typeof p.t === "string" ? p.t : "" }, entry: details2.get(p.open) || null, season: Number(st.season) || 0 });
-      }
-    }
-    if (ctx.route && ctx.route.name === "search") {
-      const query = typeof st.sq === "string" ? st.sq : "";
-      const items = found && found.q === query ? found.items : null;
-      const status = query === "" ? "idle" : st.sstate === "fail" ? "fail" : items ? "done" : "loading";
-      return searchView({ query, status, items, history: query === "" ? readHistory() : [], device: ctx.device });
-    }
-    const tab = TAB_IDS.includes(st.tab) ? st.tab : tabFromArgs(ctx.route) ?? stored() ?? TAB_IDS[0];
+  function screen2(ctx) {
+    const c = ctx || {};
+    const device = c.device || "phone";
+    if (needsResolver && !(c.installed && c.installed[RESOLVER_REPO])) return gateView(cfg, device);
+    if (c.route && c.route.name === "settings") return settingsView(cfg, device);
+    const st = c.state && typeof c.state === "object" ? c.state : {};
+    const tab = TAB_IDS.includes(st.tab) ? st.tab : tabFromArgs(c.route) ?? stored() ?? TAB_IDS[0];
     const data = enrich(dataOf(tab));
-    const loaded = TAB_IDS.map((t3) => memo.get(t3)).filter(Boolean).map((m) => m.data);
+    const loaded = TAB_IDS.map((t2) => memo.get(t2)).filter(Boolean).map((m) => m.data);
     const pending = Array.isArray(st.pending) && st.pending.length > 0;
-    return browseView({ tab, data, recent: meta.dress(recentOf(readKeys(), loaded)), pending, failed: !!(st.failed && st.failed[tab]), device: ctx.device });
+    return browseView(cfg, { tab, data, recent: meta.dress(recentOf(readKeys(), loaded)), pending, failed: !!(st.failed && st.failed[tab]), searching: !!st.searching, device });
   }
   async function load(tab) {
-    const page = await loadTab(tab);
-    const data = tabOf(page);
+    const data = tabOf(await loadTab(tab));
     if (data) {
       memo.set(tab, { data, whole: true });
       writeSnap(tab, data);
@@ -1331,53 +716,22 @@ function makeBrowse({ kino: kino2, loadTab, searchTitles }) {
   const events = {
     open({ route, state, device }) {
       const tab = tabFromArgs(route) ?? (TAB_IDS.includes(state.tab) ? state.tab : stored() ?? TAB_IDS[0]);
-      for (const t3 of TAB_IDS) dataOf(t3);
-      const out = { state: { tab, pending: needed(tab, device), failed: null } };
-      const a = route && route.args && typeof route.args === "object" ? route.args : {};
-      if (typeof a.open === "string" && typeof a.i === "string" && (a.k === "movie" || a.k === "series")) {
-        out.route = { push: "detail", params: { open: a.open, i: a.i, t: typeof a.t === "string" ? a.t.slice(0, 100) : "", k: a.k, d: Number(a.d) || 0, y: Number(a.y) || 0 } };
-        out.state.season = null;
-      }
-      return out;
-    },
-    // A card of the list was tapped: its page goes over the list.
-    openTitle({ arg }) {
-      const route = pushOf(arg);
-      return route ? { route, state: { season: null } } : null;
-    },
-    // The page's timer: loads the title once, then no timer.
-    async dtick({ route }) {
-      const p = paramsOf(route);
-      if (typeof p.open !== "string" || details2.has(p.open)) return { state: { dv: Date.now() } };
-      try {
-        details2.set(p.open, { d: await loadDetail({ t: p.t, k: p.k, d: p.d, y: p.y }) });
-      } catch (e) {
-        log("browse detail", e && e.code || "error");
-        details2.set(p.open, { d: null });
-      }
-      return { state: { dv: Date.now() } };
-    },
-    dretry({ route }) {
-      details2.delete(paramsOf(route).open);
-      return { state: { dv: Date.now() } };
-    },
-    season({ value, arg }) {
-      const n = parseInt(value != null ? value : arg, 10);
-      return n > 0 ? { state: { season: n } } : null;
+      for (const t2 of TAB_IDS) dataOf(t2);
+      return { state: { tab, pending: needed(tab, device), failed: null, searching: false } };
     },
     tab({ value, arg, state }) {
       const tab = TAB_IDS.includes(value) ? value : TAB_IDS.includes(arg) ? arg : null;
       if (!tab) return null;
-      remember(tab);
+      set(TAB_KEY, tab);
       dataOf(tab);
       const failed = { ...state.failed || {} };
       delete failed[tab];
-      const pending = [tab, ...Array.isArray(state.pending) ? state.pending.filter((t3) => t3 !== tab) : []];
+      const pending = [tab, ...Array.isArray(state.pending) ? state.pending.filter((t2) => t2 !== tab) : []];
       return { state: { tab, pending: memo.get(tab) && memo.get(tab).whole ? pending.slice(1) : pending, failed } };
     },
     retry({ state, device }) {
       const tab = TAB_IDS.includes(state.tab) ? state.tab : TAB_IDS[0];
-      return { state: { failed: null, pending: [tab, ...needed(tab, device).filter((t3) => t3 !== tab)] } };
+      return { state: { failed: null, pending: [tab, ...needed(tab, device).filter((t2) => t2 !== tab)] } };
     },
     async tick({ state }) {
       const pending = Array.isArray(state.pending) ? state.pending : [];
@@ -1386,7 +740,7 @@ function makeBrowse({ kino: kino2, loadTab, searchTitles }) {
       const failed = { ...state.failed || {} };
       if (next.startsWith("meta:")) {
         const m = memo.get(next.slice(5));
-        if (m) await meta.fill([...m.data.slides.map((s) => ({ id: s.id, title: s.title, kind: s.kind })), ...m.data.rails.flatMap((r) => r.items.slice(0, 6).map((c) => ({ id: c.id, title: c.title, kind: c.kind })))], 12e3);
+        if (m) await meta.fill([...m.data.slides.map((s) => ({ id: s.id, title: s.title, kind: s.kind })), ...m.data.rails.flatMap((r) => r.items.slice(0, 6).map((x) => ({ id: x.id, title: x.title, kind: x.kind })))], 12e3);
         return { state: { pending: rest } };
       }
       try {
@@ -1395,53 +749,44 @@ function makeBrowse({ kino: kino2, loadTab, searchTitles }) {
         else delete failed[next];
         if (ok && meta.usable()) rest.unshift("meta:" + next);
       } catch (e) {
-        log("browse tab", e && e.code || "error");
+        log("tab", e && e.code || "error");
         failed[next] = true;
       }
       return { state: { pending: rest, failed } };
     },
-    // The floating button: straight to the search page, empty and ready for the words.
     openSearch() {
-      return { route: { push: "search" }, state: { sq: "", sstate: null } };
+      return { state: { searching: true } };
     },
-    search({ value, route }) {
-      const q = value && typeof value.q === "string" ? value.q.trim().slice(0, 100) : "";
-      if (q === "") return null;
-      const state = { sq: q, sstate: "loading" };
-      return route && route.name === "search" ? { state } : { route: { push: "search" }, state };
+    closeSearch() {
+      return { state: { searching: false } };
     },
-    // The search page's timer: one search per press, then no timer.
-    async stick({ state }) {
-      const q = typeof state.sq === "string" ? state.sq : "";
-      if (q === "" || state.sstate !== "loading") return null;
-      try {
-        const out = await searchTitles(q);
-        found = { q, items: (Array.isArray(out) ? out : []).slice(0, 60).map(cardOf) };
-        rememberFound(found.items);
-        return { state: { sstate: "done" } };
-      } catch (e) {
-        log("browse search", e && e.code || "error");
-        return { state: { sstate: "fail" } };
-      }
+    // The words go to Kino's own search, with this plugin as the source.
+    search({ value, state }) {
+      const typed = value && typeof value === "object" ? value.q : value;
+      const raw = typed != null && String(typed).trim() !== "" ? typed : state.inputs && state.inputs.q;
+      const q = String(raw == null ? "" : raw).trim().slice(0, Q_MAX);
+      return q ? { go: { search: { q } }, state: { searching: false } } : { state: { searching: false } };
     },
-    sretry({ state }) {
-      return typeof state.sq === "string" && state.sq !== "" ? { state: { sstate: "loading" } } : null;
-    },
-    // The gear: the plugin's settings are a page of their own, one Back away.
-    go({ arg }) {
-      return arg === "settings" ? { route: { push: "settings" }, state: { fromBrowse: true } } : null;
+    openSettings() {
+      return { route: { push: "settings" }, state: { fromBrowse: true } };
     },
     back({ state, route }) {
       if (route && route.name === "settings" && !state.fromBrowse) return { close: true };
-      return { route: { pop: true }, state: { sq: null, sstate: null } };
+      return { route: { pop: true }, state: { fromBrowse: false } };
     }
   };
-  async function event(ev) {
-    const handler = Object.hasOwn(events, ev.name) ? events[ev.name] : null;
-    return handler ? await handler({ ...ev, state: ev.state || {} }) ?? null : null;
+  async function screenEvent2(ev) {
+    const e = ev || {};
+    const name2 = e.name != null ? e.name : e.event;
+    const handler = typeof name2 === "string" && Object.hasOwn(events, name2) ? events[name2] : null;
+    return handler ? await handler({ ...e, state: e.state || {} }) ?? null : null;
   }
-  return { view, event, notePlayed };
+  return { screen: screen2, screenEvent: screenEvent2, notePlayed };
 }
+
+// src/logo.js
+var LOGO = "data:image/png;base64,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";
+var LOGO_ASPECT = "1:1";
 
 // src/util/terms.js
 function searchTerms(arg) {
@@ -1585,7 +930,7 @@ var STRINGS = {
     needResolver: "To play, open SeriesKao from the menu and install the playback engine it asks for."
   }
 };
-var t2 = (key) => {
+var t = (key) => {
   const lang = String(kino.lang || "").toLowerCase().startsWith("es") ? "es" : "en";
   return STRINGS[lang][key] || STRINGS.es[key] || key;
 };
@@ -1606,7 +951,7 @@ function site() {
 }
 async function getPage(url, headers) {
   const r = await kino.fetch(url, { headers: { "User-Agent": UA, "Accept-Language": "es-MX,es;q=0.9", ...headers || {} }, timeoutMs: 15e3 });
-  if (!r.ok) throw kino.error("unavailable", `SeriesKao ${r.status} ${url}`, { userMessage: t2("unavailable") });
+  if (!r.ok) throw kino.error("unavailable", `SeriesKao ${r.status} ${url}`, { userMessage: t("unavailable") });
   return r.text();
 }
 async function cached(key, fn) {
@@ -1658,7 +1003,7 @@ function refOf(ref) {
   if (!m) return null;
   if (m[1] === "list") {
     const l = LISTS[m[2]];
-    return l ? { ...l, title: t2(l.titleKey) } : null;
+    return l ? { ...l, title: t(l.titleKey) } : null;
   }
   const g = GENRES.find((x) => x[0] === m[2]);
   return g ? { path: "/generos/" + g[0], title: g[1], genre: g[0] === "dorama" ? "doramas" : void 0, genreName: g[1] } : null;
@@ -1687,7 +1032,7 @@ async function withEpisodes(cards) {
 async function latestRow() {
   const cards = await cached("latest", async () => parseLatestEpisodes(await getPage(site() + "/")));
   const items = cards.slice(0, 20).map((c) => ({ ...toItem(c), ...c.label ? { badges: [c.label] } : {} }));
-  return items.length ? { id: "latest", title: t2("latestEpisodes"), items, ref: "list:series", genre: "series" } : null;
+  return items.length ? { id: "latest", title: t("latestEpisodes"), items, ref: "list:series", genre: "series" } : null;
 }
 var safeRow = async (id, fn) => {
   try {
@@ -1732,7 +1077,7 @@ async function searchOne(arg) {
 }
 var search = (arg) => searchWithTerms(arg, searchOne);
 async function section({ tab } = {}) {
-  const tabs = [{ id: "novedades", label: t2("news") }, { id: "series", label: t2("series") }, { id: "peliculas", label: t2("movies") }, { id: "anime", label: t2("anime") }, { id: "doramas", label: t2("doramas") }];
+  const tabs = [{ id: "novedades", label: t("news") }, { id: "series", label: t("series") }, { id: "peliculas", label: t("movies") }, { id: "anime", label: t("anime") }, { id: "doramas", label: t("doramas") }];
   const chosen = tabs.some((x) => x.id === tab) ? tab : "novedades";
   let rows = [];
   if (chosen === "novedades") rows = await Promise.all([safeRow("latest", latestRow), safeRow("series", () => rowOf("series", "list:series")), safeRow("peliculas", () => rowOf("peliculas", "list:peliculas")), safeRow("animes", () => rowOf("animes", "list:animes"))]);
@@ -1743,7 +1088,7 @@ async function section({ tab } = {}) {
   rows = rows.filter(Boolean);
   const answer = { tabs, tab: chosen, rows };
   const first = rows.flatMap((r) => r.items).find((i) => i.poster);
-  if (first) answer.hero = { title: first.title, text: t2("heroText"), image: first.poster };
+  if (first) answer.hero = { title: first.title, text: t("heroText"), image: first.poster };
   return answer;
 }
 async function categories() {
@@ -1781,7 +1126,7 @@ async function episodes(ref) {
   if (!slug) throw kino.error("not_found", "unknown ref: " + ref);
   const p = await titlePage(code, slug);
   const list = p ? p.seasons.flatMap((s) => s.episodes) : [];
-  if (!list.length) throw kino.error("not_found", "no episodes for " + slug, { userMessage: t2("noEpisodes") });
+  if (!list.length) throw kino.error("not_found", "no episodes for " + slug, { userMessage: t("noEpisodes") });
   const known = await knownEpisodes(p);
   const byKey = new Map((known || []).map((e) => [e.season + "x" + e.number, e]));
   const series = { title: p.title || void 0, poster: p.poster || void 0, backdrop: p.backdrop || void 0, overview: p.overview || void 0, genres: p.genres.length ? p.genres : void 0, year: p.year ? String(p.year) : void 0, rating: p.rating };
@@ -1790,7 +1135,7 @@ async function episodes(ref) {
     series,
     episodes: list.map((e) => {
       const extra = byKey.get(e.season + "x" + e.number);
-      const ep = { season: e.season, number: e.number, ref: `e:${code}:${slug}:${e.season}:${e.number}`, title: e.title || extra && extra.title || `${t2("episode")} ${e.number}` };
+      const ep = { season: e.season, number: e.number, ref: `e:${code}:${slug}:${e.season}:${e.number}`, title: e.title || extra && extra.title || `${t("episode")} ${e.number}` };
       if (extra && extra.still) ep.still = extra.still;
       if (extra && extra.overview) ep.overview = extra.overview;
       return ep;
@@ -1839,9 +1184,7 @@ async function open(server, req, budget) {
   if (!best) return null;
   return { captured: true, url: best.url, mime: best.mime || (/\.mp4/i.test(best.url) ? "video/mp4" : HLS), headers: best.headers || { Referer: server.url } };
 }
-var labelOf = (s) => `${t2(LANG_NAME[s.lang.toUpperCase()] || "sub")} \xB7 ${SERVER_NAME[s.server.toLowerCase()] || s.server}`;
-var RESOLVER_REPO = "xuper-plugin/kino-plugin-kino-resolver";
-var SUPPORT_URL = "https://ko-fi.com/xuperplugins";
+var labelOf = (s) => `${t(LANG_NAME[s.lang.toUpperCase()] || "sub")} \xB7 ${SERVER_NAME[s.server.toLowerCase()] || s.server}`;
 async function resolverInstalled() {
   try {
     await kino.plugins.call("resolver", "normalizeHost", { url: "https://probe.invalid/" });
@@ -1850,40 +1193,29 @@ async function resolverInstalled() {
     return (e && e.code) !== "provider_missing";
   }
 }
-function supportNode(device) {
-  if (device === "tv") return { type: "QrImage", value: SUPPORT_URL, size: "large", labelText: "Si te gusta mi trabajo, escan\xE9alo y ap\xF3yame", labelTextEn: "If you like my work, scan it and support me" };
-  return { type: "ElevatedButton", key: "donate", icon: "heart", labelText: "Si te gusta mi trabajo, ap\xF3yame", labelTextEn: "If you like my work, support me", onPressed: { go: { url: { href: SUPPORT_URL } } } };
-}
-function installGateView(device) {
-  return {
-    type: "Scaffold",
-    key: "serieskao-install",
-    body: { type: "SingleChildScrollView", key: "installScroll", children: [
-      { type: "Column", padding: 24, gap: 16, crossAxisAlignment: "stretch", children: [
-        { type: "Text", text: "Necesitas el motor de reproducci\xF3n", textEn: "You need the playback engine", style: "h3" },
-        { type: "Text", color: "secondary", text: "SeriesKao reproduce a trav\xE9s de Kino Resolver (gratis). Inst\xE1lalo una vez y sirve para este y para otros plugins de sitios.", textEn: "SeriesKao plays through Kino Resolver (free). Install it once and it works here and in other site plugins." },
-        { type: "ElevatedButton", key: "installResolver", labelText: "Instalar Kino Resolver", labelTextEn: "Install Kino Resolver", onPressed: { go: { installPlugin: { repo: RESOLVER_REPO } } } },
-        supportNode(device)
-      ] }
-    ] }
-  };
-}
-var browseInstance = null;
-var browseScreen = () => browseInstance ?? (browseInstance = makeBrowse({
+var std = null;
+var standard = () => std ?? (std = makeStandardScreen({
   kino,
+  name: "SeriesKao",
+  logo: LOGO,
+  logoAspect: LOGO_ASPECT,
+  needsResolver: true,
+  hasSettings: true,
+  tabs: [
+    { id: "inicio", label: "Inicio", labelEn: "Home" },
+    { id: "peliculas", label: "Pel\xEDculas", labelEn: "Movies" },
+    { id: "series", label: "Series", labelEn: "Series" }
+  ],
   // Inicio is the Home rows; Películas and Series are the section's own tabs of the same name.
-  loadTab: async (tab) => ({ rows: tab === "peliculas" || tab === "series" ? (await section({ tab })).rows : await home() }),
-  searchTitles: (q) => search({ q })
+  loadTab: async (tab) => ({ rows: tab === "peliculas" || tab === "series" ? (await section({ tab })).rows : await home() })
 }));
 async function screen(ctx) {
   await null;
-  const c = ctx && typeof ctx === "object" ? ctx : {};
-  if (!(c.installed && c.installed[RESOLVER_REPO])) return installGateView(c.device);
-  return browseScreen().view(c);
+  return standard().screen(ctx && typeof ctx === "object" ? ctx : {});
 }
 async function screenEvent(ev) {
   await null;
-  return browseScreen().event(ev && typeof ev === "object" ? ev : {});
+  return standard().screenEvent(ev && typeof ev === "object" ? ev : {});
 }
 async function resolve(ref) {
   const m = /^c:(.+)@(\d+)$/.exec(String(ref || ""));
@@ -1891,10 +1223,10 @@ async function resolve(ref) {
   const only = m ? Number(m[2]) : null;
   const pageUrl = pageOf(base, site());
   if (!pageUrl) throw kino.error("not_found", "unknown ref: " + ref);
-  if (!await resolverInstalled()) throw kino.error("unavailable", "resolver missing", { userMessage: t2("needResolver") });
+  if (!await resolverInstalled()) throw kino.error("unavailable", "resolver missing", { userMessage: t("needResolver") });
   const req = makeReq(kino, { deadline: Date.now() + RESOLVE_MS });
   const servers2 = await serversOf2(pageUrl, req);
-  if (!servers2.length) throw kino.error("not_found", "no servers on " + pageUrl, { userMessage: t2("noStreams") });
+  if (!servers2.length) throw kino.error("not_found", "no servers on " + pageUrl, { userMessage: t("noStreams") });
   const budget = { captures: MAX_CAPTURES };
   const deliver = (i, out) => {
     const s = servers2[i];
@@ -1940,7 +1272,7 @@ async function resolve(ref) {
     return deliver(slow.i, slow.out);
   }
   kino.log(`resolve ${base} failed: ${failures.join("; ")}`);
-  throw kino.error("not_found", "no server opened for " + pageUrl, { userMessage: t2("noStreams") });
+  throw kino.error("not_found", "no server opened for " + pageUrl, { userMessage: t("noStreams") });
 }
 async function settingsStatus() {
   let n = 0;
@@ -1948,7 +1280,7 @@ async function settingsStatus() {
     n = kino.storage.keys().filter((k) => k.startsWith("c:")).length;
   } catch (_) {
   }
-  return { info: t2("statusLine").replace("{host}", new URL(site()).hostname).replace("{n}", String(n)) };
+  return { info: t("statusLine").replace("{host}", new URL(site()).hostname).replace("{n}", String(n)) };
 }
 async function action(key) {
   if (key === "clearCache") {
@@ -1956,7 +1288,7 @@ async function action(key) {
       for (const k of kino.storage.keys()) if (k.startsWith("c:")) kino.storage.remove(k);
     } catch (_) {
     }
-    return { message: t2("cacheCleared") };
+    return { message: t("cacheCleared") };
   }
   return { message: "" };
 }
