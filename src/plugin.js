@@ -216,8 +216,38 @@ export async function section({ tab } = {}) {
   return answer;
 }
 
+/**
+ * One backdrop per Categorías tile: a well-known title of the genre, its TMDB image path at w780 (each checked with a
+ * request to image.tmdb.org: 200, image/jpeg). Static on purpose: `categories()` asks nothing of the network. Keys are the
+ * site's own slugs; a slug not listed gets no art (Kino draws its plain tile). Kino draws a tile's picture from `art`.
+ */
+const TILE_ART_SIZE = "w780";
+const GENRE_ART = {
+  accion: "/gqrnQA6Xppdl8vIb2eJc58VC1tW.jpg", // Mad Max: Fury Road
+  animacion: "/qcSHGC5BfoqBoP99PzDIERYG5Qm.jpg", // The Simpsons
+  aventura: "/yUOFocKDW7MCC5isx4FK8A68QFp.jpg", // Lost
+  belica: "/bdD39MpSVhKjxarTxLSfX6baoMP.jpg", // Saving Private Ryan
+  "ciencia-ficcion": "/9P4IIMYY3HifqeruZq0ZZ9g7YUi.jpg", // Stranger Things
+  comedia: "/l0qVZIpXtIo7km9u5Yqh0nKPOr5.jpg", // Friends
+  crimen: "/xGexTKCJDkl12dTW4YCBDXWb1AD.jpg", // Money Heist
+  documental: "/sW7VOrkHKYIeV9PaYc5IqGU2XK8.jpg", // My Octopus Teacher
+  dorama: "/29jWaRhKtey1efp5G7Fu97NAmzz.jpg", // Moving (Korean drama)
+  drama: "/jP0Rhj9OTPDAwQlHQwOLFDdeE8t.jpg", // Grey's Anatomy
+  familia: "/iJgNOTSBNrC90U2xyYq9ln0b35o.jpg", // Paddington 2
+  fantasia: "/oiwc338EoBgS4sEI2ixAny4KQKg.jpg", // The Fellowship of the Ring
+  guerra: "/bdD39MpSVhKjxarTxLSfX6baoMP.jpg", // Saving Private Ryan
+  historia: "/m4MGxxEgAMqIX9x8MCg5pYeyYjU.jpg", // The King's Speech
+  misterio: "/4HWAQu28e2yaWrtupFPGFkdNU7V.jpg", // Knives Out
+  romance: "/zdXnJqBaGFVtLoPNuMeKfEYUViZ.jpg", // The Notebook
+  suspense: "/iWak7wT0j6ycCc8lKr4NBz9c7n5.jpg", // Gone Girl
+  terror: "/nHRUtBwFNnNN70vcQ7lAsjc2T6S.jpg", // A Quiet Place
+  western: "/x4biAVdPVCghBlsVIzB6NmbghIz.jpg", // The Good, the Bad and the Ugly
+};
+const tileArt = (table, slug) => (table[slug] ? "https://image.tmdb.org/t/p/" + TILE_ART_SIZE + table[slug] : undefined);
+const withArt = (tile, art) => (art ? { ...tile, art } : tile);
+
 export async function categories() {
-  return GENRES.map(([slug, name]) => ({ id: "g-" + slug, title: name, ref: "genre:" + slug }));
+  return GENRES.map(([slug, name]) => (withArt({ id: "g-" + slug, title: name, ref: "genre:" + slug }, tileArt(GENRE_ART, slug))));
 }
 
 function slugOf(ref, code) {
