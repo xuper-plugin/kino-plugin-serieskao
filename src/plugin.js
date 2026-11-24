@@ -33,7 +33,7 @@ const HLS = "application/vnd.apple.mpegurl";
 const STRINGS = {
   es: {
     news: "Novedades", movies: "Películas", series: "Series", anime: "Anime", doramas: "Doramas",
-    recentMovies: "Películas recientes", recentSeries: "Series recientes", recentAnime: "Anime reciente",
+    recentMovies: "Películas recientes", recentSeries: "Series recientes", recentAnime: "Anime reciente", kids: "Infantil",
     latestEpisodes: "Últimos episodios", popularMovies: "Películas populares", popularSeries: "Series populares", popularAnime: "Anime popular",
     lat: "Latino", sub: "Subtitulado", cast: "Castellano", season: "Temporada", episode: "Episodio",
     heroText: "Series, anime y películas en español, con estrenos al día.",
@@ -43,7 +43,7 @@ const STRINGS = {
   },
   en: {
     news: "What's new", movies: "Movies", series: "Series", anime: "Anime", doramas: "Doramas",
-    recentMovies: "Recent movies", recentSeries: "Recent series", recentAnime: "Recent anime",
+    recentMovies: "Recent movies", recentSeries: "Recent series", recentAnime: "Recent anime", kids: "Kids",
     latestEpisodes: "Latest episodes", popularMovies: "Popular movies", popularSeries: "Popular series", popularAnime: "Popular anime",
     lat: "Latino", sub: "Subtitled", cast: "Castilian", season: "Season", episode: "Episode",
     heroText: "Series, anime and movies in Spanish, with new releases.",
@@ -118,6 +118,7 @@ const LISTS = {
   seriesPop: { path: "/series/populares", titleKey: "popularSeries", genre: "series" },
   animes: { path: "/animes", titleKey: "recentAnime", genre: "anime", verify: true },
   animesPop: { path: "/animes/populares", titleKey: "popularAnime", genre: "anime" },
+  infantil: { path: "/generos/familia", titleKey: "kids", genre: "infantil", verify: true },
 };
 
 /** `{ path, title, genre }` for a browse ref ("list:<name>" or "genre:<slug>"); null for anything else. */
@@ -166,16 +167,14 @@ async function rowOf(id, ref, genre) {
 
 // ---- exports ----
 
+/** The Home's rows, each tagged (LISTS' `genre`) with the type Kino files it under: Series, Películas, Anime (the newest first), Infantil (the site's Familia genre). */
+export const HOME_ROWS = [["latest"], ["series", "list:series"], ["peliculas", "list:peliculas"], ["animes", "list:animes"], ["infantil", "list:infantil"], ["dorama", "genre:dorama", "doramas"], ["seriesPop", "list:seriesPop"], ["populares", "list:populares"]];
+
+/** The type tag each Home row carries, by row id (what Kino reads to shelve its titles). */
+export const homeRowTags = () => Object.fromEntries(HOME_ROWS.map(([id, ref, genre]) => [id, genre || (ref ? refOf(ref).genre : "series") || "series"]));
+
 export async function home() {
-  return homeWithin([
-    () => safeRow("latest", latestRow),
-    () => safeRow("series", () => rowOf("series", "list:series")),
-    () => safeRow("peliculas", () => rowOf("peliculas", "list:peliculas")),
-    () => safeRow("animes", () => rowOf("animes", "list:animes")),
-    () => safeRow("dorama", () => rowOf("dorama", "genre:dorama", "doramas")),
-    () => safeRow("seriesPop", () => rowOf("seriesPop", "list:seriesPop")),
-    () => safeRow("populares", () => rowOf("populares", "list:populares")),
-  ]);
+  return homeWithin(HOME_ROWS.map(([id, ref, genre]) => () => safeRow(id, () => (ref ? rowOf(id, ref, genre) : latestRow()))));
 }
 
 export async function browse(ref, cursor) {

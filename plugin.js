@@ -1177,6 +1177,7 @@ var STRINGS = {
     recentMovies: "Pel\xEDculas recientes",
     recentSeries: "Series recientes",
     recentAnime: "Anime reciente",
+    kids: "Infantil",
     latestEpisodes: "\xDAltimos episodios",
     popularMovies: "Pel\xEDculas populares",
     popularSeries: "Series populares",
@@ -1203,6 +1204,7 @@ var STRINGS = {
     recentMovies: "Recent movies",
     recentSeries: "Recent series",
     recentAnime: "Recent anime",
+    kids: "Kids",
     latestEpisodes: "Latest episodes",
     popularMovies: "Popular movies",
     popularSeries: "Popular series",
@@ -1287,7 +1289,8 @@ var LISTS = {
   series: { path: "/series", titleKey: "recentSeries", genre: "series", verify: true },
   seriesPop: { path: "/series/populares", titleKey: "popularSeries", genre: "series" },
   animes: { path: "/animes", titleKey: "recentAnime", genre: "anime", verify: true },
-  animesPop: { path: "/animes/populares", titleKey: "popularAnime", genre: "anime" }
+  animesPop: { path: "/animes/populares", titleKey: "popularAnime", genre: "anime" },
+  infantil: { path: "/generos/familia", titleKey: "kids", genre: "infantil", verify: true }
 };
 function refOf(ref) {
   const m = /^(list|genre):([A-Za-z0-9-]+)$/.exec(String(ref || ""));
@@ -1340,16 +1343,10 @@ async function rowOf(id, ref, genre) {
   const items = shown.map((c) => toItem(c, def.genreName));
   return items.length ? { id, title: def.title, items, ref, genre: genre || def.genre || "series" } : null;
 }
+var HOME_ROWS = [["latest"], ["series", "list:series"], ["peliculas", "list:peliculas"], ["animes", "list:animes"], ["infantil", "list:infantil"], ["dorama", "genre:dorama", "doramas"], ["seriesPop", "list:seriesPop"], ["populares", "list:populares"]];
+var homeRowTags = () => Object.fromEntries(HOME_ROWS.map(([id, ref, genre]) => [id, genre || (ref ? refOf(ref).genre : "series") || "series"]));
 async function home() {
-  return homeWithin([
-    () => safeRow("latest", latestRow),
-    () => safeRow("series", () => rowOf("series", "list:series")),
-    () => safeRow("peliculas", () => rowOf("peliculas", "list:peliculas")),
-    () => safeRow("animes", () => rowOf("animes", "list:animes")),
-    () => safeRow("dorama", () => rowOf("dorama", "genre:dorama", "doramas")),
-    () => safeRow("seriesPop", () => rowOf("seriesPop", "list:seriesPop")),
-    () => safeRow("populares", () => rowOf("populares", "list:populares"))
-  ]);
+  return homeWithin(HOME_ROWS.map(([id, ref, genre]) => () => safeRow(id, () => ref ? rowOf(id, ref, genre) : latestRow())));
 }
 async function browse(ref, cursor) {
   const def = refOf(ref);
@@ -1628,12 +1625,14 @@ async function action(key) {
 }
 var proto_catalog_search = catalogDoor(search);
 export {
+  HOME_ROWS,
   action,
   browse,
   categories,
   details,
   episodes,
   home,
+  homeRowTags,
   proto_catalog_search,
   resolve,
   screen,

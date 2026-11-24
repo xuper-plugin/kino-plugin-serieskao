@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.14
+
+- Home: every row carries the type Kino files it under (Series, Películas, Anime newest first, Infantil from the Familia genre, Doramas)
+
 ## 0.3.13
 
 - Categorías: every genre tile now shows a picture (a well-known TMDB backdrop per genre, no extra requests)
