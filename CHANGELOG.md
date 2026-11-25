@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.15
+
+- The catalog door also lists a series' episodes, for the author's other plugins (std 1.10.0)
+
 ## 0.3.14
 
 - Home: every row carries the type Kino files it under (Series, Películas, Anime newest first, Infantil from the Familia genre, Doramas)
